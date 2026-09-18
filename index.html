@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitHub Advanced Security (GHAS) — Explained</title>
+<meta name="description" content="What GitHub Advanced Security is, how Code Scanning and Secret Scanning work, how GHAS fits into the SDLC, how the metered pricing model works, and the outcomes teams get.">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%233fb950'/%3E%3Ccircle cx='8' cy='8' r='3' fill='%230d1117'/%3E%3C/svg%3E">
+<script>
+  (function () {
+    var stored = null;
+    try { stored = localStorage.getItem('ghas-theme'); } catch (e) {}
+    if (stored === 'light' || stored === 'dark') {
+      document.documentElement.setAttribute('data-theme', stored);
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+  })();
+</script>
+<style>
+  :root {
+    --canvas: #0d1117;
+    --canvas-inset: #010409;
+    --canvas-subtle: #151b23;
+    --surface: #151b23;
+    --surface-hover: #1c2129;
+    --border: #3d444d;
+    --border-subtle: #2a3038;
+    --fg: #f0f6fc;
+    --fg-muted: #9198a1;
+    --accent: #4493f8;
+    --accent-soft: rgba(68, 147, 248, 0.12);
+    --success: #3fb950;
+    --success-soft: rgba(63, 185, 80, 0.12);
+    --purple: #ab7df8;
+    --purple-soft: rgba(171, 125, 248, 0.12);
+    --attention: #d29922;
+    --attention-soft: rgba(210, 153, 34, 0.1);
+    --danger: #f85149;
+    --danger-soft: rgba(248, 81, 73, 0.12);
+    --shadow: 0 8px 24px rgba(1, 4, 9, 0.5);
+    --radius: 12px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --canvas: #ffffff;
+      --canvas-inset: #f6f8fa;
+      --canvas-subtle: #f6f8fa;
+      --surface: #ffffff;
+      --surface-hover: #f6f8fa;
+      --border: #d1d9e0;
+      --border-subtle: #e4e8ed;
+      --fg: #1f2328;
+      --fg-muted: #59636e;
+      --accent: #0969da;
+      --accent-soft: rgba(9, 105, 218, 0.08);
+      --success: #1a7f37;
+      --success-soft: rgba(26, 127, 55, 0.08);
+      --purple: #8250df;
+      --purple-soft: rgba(130, 80, 223, 0.08);
+      --attention: #9a6700;
+      --attention-soft: rgba(154, 103, 0, 0.08);
+      --danger: #cf222e;
+      --danger-soft: rgba(207, 34, 46, 0.08);
+      --shadow: 0 8px 24px rgba(31, 35, 40, 0.12);
+    }
+  }
+
+  :root[data-theme="light"] {
+    --canvas: #ffffff;
+    --canvas-inset: #f6f8fa;
+    --canvas-subtle: #f6f8fa;
+    --surface: #ffffff;
+    --surface-hover: #f6f8fa;
+    --border: #d1d9e0;
+    --border-subtle: #e4e8ed;
+    --fg: #1f2328;
+    --fg-muted: #59636e;
+    --accent: #0969da;
+    --accent-soft: rgba(9, 105, 218, 0.08);
+    --success: #1a7f37;
+    --success-soft: rgba(26, 127, 55, 0.08);
+    --purple: #8250df;
+    --purple-soft: rgba(130, 80, 223, 0.08);
+    --attention: #9a6700;
+    --attention-soft: rgba(154, 103, 0, 0.08);
+    --danger: #cf222e;
+    --danger-soft: rgba(207, 34, 46, 0.08);
+    --shadow: 0 8px 24px rgba(31, 35, 40, 0.12);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 5rem; -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: var(--font);
+    background: var(--canvas);
+    color: var(--fg);
+    line-height: 1.55;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  svg { display: block; }
+  code { font-family: var(--mono); font-size: 0.86em; background: var(--canvas-inset); border: 1px solid var(--border-subtle); border-radius: 5px; padding: 0.1rem 0.35rem; }
+
+  .skip-link { position: absolute; left: -9999px; top: 0; z-index: 200; background: var(--accent); color: #fff; padding: 0.6rem 1rem; border-radius: 0 0 8px 0; }
+  .skip-link:focus { left: 0; }
+
+  .wrap { width: min(1080px, calc(100% - 3rem)); margin-inline: auto; }
+
+  /* Header */
+  header {
+    position: sticky; top: 0; z-index: 100;
+    background: color-mix(in srgb, var(--canvas) 88%, transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .header-inner { display: flex; align-items: center; gap: 1.5rem; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 0.6rem; font-weight: 600; font-size: 0.95rem; letter-spacing: -0.01em; color: var(--fg); }
+  .brand:hover { text-decoration: none; }
+  .brand svg { width: 24px; height: 24px; fill: var(--fg); }
+  .brand span.sep { color: var(--border); font-weight: 400; }
+  .brand span.title { color: var(--fg-muted); font-weight: 500; }
+  nav { margin-left: auto; display: flex; align-items: center; gap: 1.4rem; }
+  nav a { color: var(--fg-muted); font-size: 0.875rem; font-weight: 500; }
+  nav a:hover { color: var(--fg); text-decoration: none; }
+  .theme-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--fg-muted); cursor: pointer; transition: color .15s, border-color .15s;
+  }
+  .theme-btn:hover { color: var(--fg); border-color: var(--fg-muted); }
+  .theme-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+  :root[data-theme="light"] .icon-sun, :root:not([data-theme="dark"]) .icon-sun { display: none; }
+  :root[data-theme="light"] .icon-moon, :root:not([data-theme="dark"]) .icon-moon { display: block; }
+  .icon-moon { display: none; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .icon-sun { display: block; }
+    :root:not([data-theme="light"]) .icon-moon { display: none; }
+  }
+
+  /* Hero */
+  .hero { position: relative; padding: 5.5rem 0 4rem; overflow: hidden; }
+  .hero::before {
+    content: ""; position: absolute; inset: -30% -20% auto -20%; height: 70vh; pointer-events: none;
+    background:
+      radial-gradient(50% 50% at 22% 40%, var(--success-soft), transparent 70%),
+      radial-gradient(45% 45% at 78% 30%, var(--accent-soft), transparent 70%);
+  }
+  .hero-inner { position: relative; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 0.45rem;
+    padding: 0.3rem 0.75rem; margin-bottom: 1.5rem;
+    border: 1px solid var(--border); border-radius: 999px;
+    background: var(--surface); color: var(--fg-muted);
+    font-size: 0.78rem; font-weight: 500;
+  }
+  .badge .pip { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
+  h1 { font-size: clamp(2.4rem, 6vw, 4.2rem); line-height: 1.05; letter-spacing: -0.035em; font-weight: 700; max-width: 18ch; margin-bottom: 1.25rem; }
+  .gradient { background: linear-gradient(120deg, var(--success), var(--accent) 70%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
+  .lede { max-width: 64ch; color: var(--fg-muted); font-size: clamp(1.02rem, 1.6vw, 1.2rem); margin-bottom: 2rem; }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 3rem; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.6rem 1.05rem; border-radius: 8px; font-size: 0.9rem; font-weight: 600;
+    border: 1px solid var(--border); background: var(--surface); color: var(--fg);
+    transition: background .15s, border-color .15s, transform .15s;
+  }
+  .btn:hover { text-decoration: none; background: var(--surface-hover); border-color: var(--fg-muted); transform: translateY(-1px); }
+  .btn-primary { background: var(--success); border-color: transparent; color: #fff; }
+  .btn-primary:hover { background: color-mix(in srgb, var(--success) 88%, #000); border-color: transparent; }
+  .btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+  .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border-subtle); border: 1px solid var(--border-subtle); border-radius: var(--radius); overflow: hidden; }
+  .stat { background: var(--surface); padding: 1.15rem 1.3rem; }
+  .stat dt { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.35rem; }
+  .stat dd { font-size: 0.92rem; color: var(--fg-muted); }
+  .stat dd strong { display: block; color: var(--fg); font-size: 1rem; font-weight: 600; margin-bottom: 0.15rem; }
+
+  /* Sections */
+  section { padding: 4rem 0; }
+  section:nth-of-type(even) { background: var(--canvas-inset); }
+  .kicker { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.65rem; }
+  h2 { font-size: clamp(1.7rem, 3.4vw, 2.5rem); line-height: 1.15; letter-spacing: -0.025em; font-weight: 700; margin-bottom: 0.85rem; }
+  h3.sub { font-size: 1.25rem; font-weight: 650; letter-spacing: -0.02em; margin: 2.5rem 0 1rem; }
+  .section-lede { max-width: 68ch; color: var(--fg-muted); font-size: 1.02rem; margin-bottom: 2.25rem; }
+
+  /* Pillars / feature cards */
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
+  .card {
+    position: relative; border: 1px solid var(--border-subtle); border-radius: var(--radius);
+    background: var(--surface); padding: 1.6rem 1.4rem;
+    transition: border-color .2s, box-shadow .2s, transform .2s;
+  }
+  .card:hover { border-color: var(--border); box-shadow: var(--shadow); transform: translateY(-2px); }
+  .card-icon { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 10px; margin-bottom: 1rem; background: var(--accent-soft); color: var(--accent); }
+  .card-icon svg { width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .card-icon.green { background: var(--success-soft); color: var(--success); }
+  .card-icon.purple { background: var(--purple-soft); color: var(--purple); }
+  .card-icon.amber { background: var(--attention-soft); color: var(--attention); }
+  .card-icon.red { background: var(--danger-soft); color: var(--danger); }
+  .card h3 { font-size: 1.12rem; font-weight: 650; margin-bottom: 0.45rem; letter-spacing: -0.01em; }
+  .card p { color: var(--fg-muted); font-size: 0.92rem; }
+  .card .plain { display: block; margin-top: 1rem; padding-top: 0.85rem; border-top: 1px solid var(--border-subtle); color: var(--fg-muted); font-size: 0.85rem; }
+  .card .plain strong { color: var(--fg); font-weight: 600; }
+  .tag { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 999px; border: 1px solid var(--border); font-size: 0.71rem; font-weight: 600; color: var(--fg-muted); white-space: nowrap; }
+  .tag.green { color: var(--success); border-color: color-mix(in srgb, var(--success) 45%, transparent); background: var(--success-soft); }
+  .tag.blue { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: var(--accent-soft); }
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+
+  /* Feature detail blocks */
+  .feature { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius); overflow: hidden; background: var(--surface); margin-bottom: 1.5rem; }
+  .feature-text { padding: 2rem; }
+  .feature-text h3 { font-size: 1.45rem; font-weight: 680; letter-spacing: -0.025em; margin-bottom: 0.6rem; }
+  .feature-text p { color: var(--fg-muted); font-size: 0.95rem; margin-bottom: 1rem; }
+  .feature-vis { background: var(--canvas-inset); border-left: 1px solid var(--border-subtle); padding: 1.75rem; display: flex; flex-direction: column; justify-content: center; gap: 0.6rem; }
+  ul.checks { list-style: none; display: grid; gap: 0.55rem; }
+  ul.checks li { position: relative; padding-left: 1.6rem; color: var(--fg-muted); font-size: 0.92rem; }
+  ul.checks li::before { content: ""; position: absolute; left: 0; top: 0.45em; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--success); }
+  ul.checks li strong { color: var(--fg); font-weight: 600; }
+
+  /* Terminal-ish mock */
+  .mock { font-family: var(--mono); font-size: 0.78rem; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--canvas); overflow: hidden; }
+  .mock-bar { display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border-subtle); background: var(--canvas-subtle); color: var(--fg-muted); font-size: 0.72rem; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--border); }
+  .mock-body { padding: 0.85rem; display: grid; gap: 0.4rem; color: var(--fg-muted); line-height: 1.5; }
+  .mock-body .ln { display: flex; gap: 0.5rem; }
+  .mock-body .sev { flex-shrink: 0; font-weight: 700; }
+  .sev.high { color: var(--danger); }
+  .sev.med { color: var(--attention); }
+  .sev.ok { color: var(--success); }
+  .mock-body .fg { color: var(--fg); }
+
+  /* SDLC pipeline */
+  .pipeline { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--border-subtle); border: 1px solid var(--border-subtle); border-radius: var(--radius); overflow: hidden; }
+  .phase { background: var(--surface); padding: 1.4rem 1.15rem; position: relative; }
+  .phase::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: linear-gradient(90deg, var(--accent), var(--success)); }
+  .phase .step { font-family: var(--mono); font-size: 0.72rem; font-weight: 700; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.5rem; }
+  .phase h4 { font-size: 1rem; font-weight: 650; margin-bottom: 0.4rem; }
+  .phase p { font-size: 0.85rem; color: var(--fg-muted); }
+  .phase .who { display: block; margin-top: 0.8rem; padding-top: 0.6rem; border-top: 1px solid var(--border-subtle); font-size: 0.76rem; color: var(--fg-muted); }
+  .phase .who strong { color: var(--fg); }
+
+  /* Timeline */
+  .timeline { display: grid; gap: 0; border-left: 2px solid var(--border-subtle); margin-left: 0.5rem; }
+  .tl-item { position: relative; padding: 0 0 1.75rem 1.75rem; }
+  .tl-item::before { content: ""; position: absolute; left: -7px; top: 0.35rem; width: 12px; height: 12px; border-radius: 50%; background: var(--success); border: 2px solid var(--canvas); }
+  .tl-item h4 { font-size: 1.02rem; font-weight: 650; margin-bottom: 0.25rem; }
+  .tl-item p { color: var(--fg-muted); font-size: 0.92rem; }
+  .tl-item .when { font-family: var(--mono); font-size: 0.72rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.3rem; }
+
+  /* Table */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius); background: var(--surface); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 700px; }
+  thead { background: var(--canvas-inset); }
+  th, td { text-align: left; padding: 0.85rem 1.15rem; border-bottom: 1px solid var(--border-subtle); vertical-align: top; }
+  th { font-size: 0.76rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-muted); }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface-hover); }
+  td strong { font-weight: 600; }
+  td.muted { color: var(--fg-muted); }
+  .price { font-family: var(--mono); font-weight: 700; color: var(--fg); white-space: nowrap; }
+
+  /* Note */
+  .note { display: flex; gap: 0.9rem; align-items: flex-start; border: 1px solid var(--border); border-left: 3px solid var(--attention); border-radius: 8px; background: var(--attention-soft); padding: 1.1rem 1.25rem; color: var(--fg-muted); font-size: 0.93rem; margin-top: 1.5rem; }
+  .note svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 0.15rem; stroke: var(--attention); fill: none; stroke-width: 1.8; }
+  .note strong { color: var(--fg); }
+  .note.info { border-left-color: var(--accent); background: var(--accent-soft); }
+  .note.info svg { stroke: var(--accent); }
+
+  /* Outcome metrics */
+  .outcomes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border-subtle); border: 1px solid var(--border-subtle); border-radius: var(--radius); overflow: hidden; margin-bottom: 2rem; }
+  .outcome { background: var(--surface); padding: 1.5rem 1.3rem; text-align: left; }
+  .outcome .big { font-size: 1.9rem; font-weight: 700; letter-spacing: -0.03em; background: linear-gradient(120deg, var(--success), var(--accent)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .outcome p { font-size: 0.85rem; color: var(--fg-muted); margin-top: 0.3rem; }
+
+  /* FAQ */
+  details { border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface); margin-bottom: 0.75rem; overflow: hidden; }
+  summary { cursor: pointer; padding: 1rem 1.25rem; font-weight: 600; font-size: 0.97rem; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; color: var(--fg-muted); font-weight: 400; font-size: 1.3rem; line-height: 1; }
+  details[open] summary::after { content: "−"; }
+  summary:hover { background: var(--surface-hover); }
+  details p { padding: 0 1.25rem 1.15rem; color: var(--fg-muted); font-size: 0.92rem; }
+
+  footer { border-top: 1px solid var(--border-subtle); padding: 2.5rem 0; }
+  .footer-inner { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; align-items: center; color: var(--fg-muted); font-size: 0.85rem; }
+  .footer-links { display: flex; flex-wrap: wrap; gap: 1.25rem; }
+
+  @media (max-width: 900px) {
+    .grid-3, .grid-2, .stat-row, .feature, .pipeline, .outcomes { grid-template-columns: 1fr; }
+    .feature-vis { border-left: none; border-top: 1px solid var(--border-subtle); }
+    nav a { display: none; }
+  }
+  @media (max-width: 600px) {
+    .wrap { width: calc(100% - 2rem); }
+    .hero { padding: 3.5rem 0 2.5rem; }
+    section { padding: 3rem 0; }
+    .outcomes { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header>
+  <div class="wrap header-inner">
+    <a class="brand" href="#main">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>
+      GitHub <span class="sep">/</span> <span class="title">Advanced Security</span>
+    </a>
+    <nav>
+      <a href="#what">What it is</a>
+      <a href="#features">Features</a>
+      <a href="#sdlc">SDLC</a>
+      <a href="#workflow">Workflow</a>
+      <a href="#pricing">Pricing</a>
+      <button class="theme-btn" id="theme-toggle" type="button" aria-label="Toggle color scheme">
+        <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg>
+      </button>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <div class="hero">
+    <div class="wrap hero-inner">
+      <div class="badge"><span class="pip"></span> Customer-shareable overview of GitHub Advanced Security</div>
+      <h1>Security that runs <span class="gradient">while developers code</span>, not weeks later.</h1>
+      <p class="lede">GitHub Advanced Security (GHAS) puts code analysis, secret detection and dependency checks directly inside the repository and the pull request. Vulnerabilities and leaked credentials surface at the moment the code is written, in the same place the developer already works.</p>
+
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#features">See the features <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <a class="btn" href="#sdlc">GHAS in the SDLC</a>
+        <a class="btn" href="#pricing">Pricing model</a>
+      </div>
+
+      <dl class="stat-row">
+        <div class="stat">
+          <dt>Continuous</dt>
+          <dd><strong>Not an audit</strong>Scans run on every push and every pull request, in parallel with normal development.</dd>
+        </div>
+        <div class="stat">
+          <dt>In the workflow</dt>
+          <dd><strong>No new tool</strong>Findings appear as PR comments, checks and alerts in GitHub. No separate portal to learn.</dd>
+        </div>
+        <div class="stat">
+          <dt>Metered</dt>
+          <dd><strong>Active committers</strong>You pay per developer who actually commits to an enabled repository, per month.</dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+
+  <section id="what">
+    <div class="wrap">
+      <p class="kicker">Start here</p>
+      <h2>What GHAS actually is</h2>
+      <p class="section-lede">GHAS is a set of security capabilities built into GitHub itself. Instead of sending code to an external scanner and waiting for a report, the analysis runs on GitHub's own infrastructure, against the repository, and writes results back into the developer's normal workflow.</p>
+
+      <div class="grid-3">
+        <article class="card">
+          <div class="card-icon green">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6 2 12l6 6M16 6l6 6-6 6"/></svg>
+          </div>
+          <h3>Find flaws in your own code</h3>
+          <p>Code Scanning analyses the source you write and flags issues such as SQL injection, cross-site scripting or unsafe deserialisation before they ever reach production.</p>
+          <span class="plain"><strong>In plain words:</strong> a very thorough reviewer that reads every line, every time, and never gets tired.</span>
+        </article>
+        <article class="card">
+          <div class="card-icon amber">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="4"/><path d="M12 12h9M17 12v4M20 12v3"/></svg>
+          </div>
+          <h3>Stop credentials leaking</h3>
+          <p>Secret Scanning looks for API keys, tokens, passwords and certificates in code, commits, issues and history, and can block a push that contains one.</p>
+          <span class="plain"><strong>In plain words:</strong> a bouncer at the door that checks nobody is carrying the office keys out of the building.</span>
+        </article>
+        <article class="card">
+          <div class="card-icon purple">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7v6c0 5 3.4 7.7 8 9 4.6-1.3 8-4 8-9V7l-8-4Z"/><path d="m9 12 2 2 4-4"/></svg>
+          </div>
+          <h3>Fix instead of just report</h3>
+          <p>Copilot Autofix proposes a concrete code change for most alerts. The developer reviews a suggested diff rather than reading a PDF finding and researching a remedy.</p>
+          <span class="plain"><strong>In plain words:</strong> the tool does not only say "this is broken", it offers the patch.</span>
+        </article>
+      </div>
+
+      <div class="note info">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+        <div><strong>Naming note.</strong> GitHub restructured the bundle in 2025. What was sold as one "Advanced Security" add-on is now two products you can buy separately: <strong>GitHub Secret Protection</strong> (secret scanning, push protection, validity checks) and <strong>GitHub Code Security</strong> (code scanning with CodeQL, Copilot Autofix, dependency review, security campaigns). People still say "GHAS" for both together.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="wrap">
+      <p class="kicker">Capabilities</p>
+      <h2>The two core features, explained simply</h2>
+      <p class="section-lede">Code Scanning and Secret Scanning solve two different problems. One looks for mistakes in the logic you wrote. The other looks for credentials that should never have been committed at all.</p>
+
+      <article class="feature">
+        <div class="feature-text">
+          <div class="card-top">
+            <h3>Code Scanning</h3>
+            <span class="tag green">Code Security</span>
+          </div>
+          <p>Static analysis powered by CodeQL. Your code is turned into a queryable database, then hundreds of security queries run against it to trace how untrusted input flows through the application into a dangerous operation.</p>
+          <ul class="checks">
+            <li><strong>Runs on every pull request</strong> and on a schedule against the default branch.</li>
+            <li><strong>Comments inline on the diff</strong> so the developer sees the problem at the exact line.</li>
+            <li><strong>Data-flow aware</strong>, so it catches an unsafe path across several files, not just a bad-looking keyword.</li>
+            <li><strong>Supports third-party scanners</strong> via SARIF upload, so existing tools report into the same alert list.</li>
+            <li><strong>Copilot Autofix</strong> suggests the fix as a reviewable diff.</li>
+          </ul>
+        </div>
+        <div class="feature-vis">
+          <div class="mock">
+            <div class="mock-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> &nbsp;Pull request #482 · checks</div>
+            <div class="mock-body">
+              <div class="ln"><span class="sev high">✕ HIGH</span><span>SQL injection in <span class="fg">api/orders.py:41</span></span></div>
+              <div class="ln"><span class="sev">↳</span><span>User input from <span class="fg">request.args['id']</span> reaches <span class="fg">cursor.execute()</span> unsanitised</span></div>
+              <div class="ln"><span class="sev ok">✓ FIX</span><span>Copilot Autofix suggested: use a parameterised query</span></div>
+              <div class="ln"><span class="sev med">! MED</span><span>Path traversal in <span class="fg">utils/files.py:88</span></span></div>
+              <div class="ln"><span class="sev ok">✓</span><span>47 other queries passed</span></div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="feature">
+        <div class="feature-text">
+          <div class="card-top">
+            <h3>Secret Scanning</h3>
+            <span class="tag blue">Secret Protection</span>
+          </div>
+          <p>Pattern matching for credentials, built with more than 200 partner providers. It checks new commits, the full git history, plus issues, pull request bodies and descriptions.</p>
+          <ul class="checks">
+            <li><strong>Push protection</strong> rejects the push before the secret ever lands in the repository.</li>
+            <li><strong>Validity checks</strong> ask the provider whether a found token is still live, so you triage real risk first.</li>
+            <li><strong>Partner alerts</strong> notify the issuer (AWS, Azure, Stripe and others) so the credential can be revoked.</li>
+            <li><strong>Historic scan</strong> of the whole repository, because a secret committed two years ago is still a secret.</li>
+            <li><strong>Custom patterns</strong> for your own internal token formats.</li>
+          </ul>
+        </div>
+        <div class="feature-vis">
+          <div class="mock">
+            <div class="mock-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> &nbsp;git push origin feature/payments</div>
+            <div class="mock-body">
+              <div class="ln"><span class="sev high">✕</span><span class="fg">Push rejected — secret detected</span></div>
+              <div class="ln"><span class="sev">·</span><span>Type: <span class="fg">Stripe live API key</span></span></div>
+              <div class="ln"><span class="sev">·</span><span>File: <span class="fg">config/payments.env:12</span></span></div>
+              <div class="ln"><span class="sev">·</span><span>Status: <span class="fg">active credential</span></span></div>
+              <div class="ln"><span class="sev ok">→</span><span>Remove the secret, or request a bypass with justification</span></div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <h3 class="sub">The rest of the toolkit</h3>
+      <div class="grid-3">
+        <article class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v6M12 22v-6M4.9 7l5.2 3M13.9 14l5.2 3M4.9 17l5.2-3M13.9 10l5.2-3"/><circle cx="12" cy="12" r="2.5"/></svg>
+          </div>
+          <h3>Dependency review &amp; Dependabot</h3>
+          <p>Shows the security impact of a dependency change inside the pull request, and opens automated update PRs for vulnerable packages.</p>
+          <span class="plain"><strong>Why it matters:</strong> most application code today is other people's code.</span>
+        </article>
+        <article class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6"/></svg>
+          </div>
+          <h3>Security overview</h3>
+          <p>One org-level dashboard showing risk and coverage across every repository: which repos are enabled, where the open alerts sit, and how fast they are being closed.</p>
+          <span class="plain"><strong>Why it matters:</strong> security leads need the aggregate view, not 400 repo tabs.</span>
+        </article>
+        <article class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+          </div>
+          <h3>Security campaigns</h3>
+          <p>Bundle a set of existing alerts into a tracked remediation effort, assign them to the right teams, and drive the backlog down with Autofix suggestions attached.</p>
+          <span class="plain"><strong>Why it matters:</strong> turns a long alert list into finite, assignable work.</span>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="sdlc">
+    <div class="wrap">
+      <p class="kicker">Software Development Lifecycle</p>
+      <h2>Where GHAS sits in the SDLC</h2>
+      <p class="section-lede">GHAS is not one gate at the end. It attaches to five points in the lifecycle, each with a different owner and a different cost of failure. The earlier a problem is caught, the cheaper it is to fix.</p>
+
+      <div class="pipeline">
+        <div class="phase">
+          <div class="step">01 Code</div>
+          <h4>In the editor</h4>
+          <p>Secret scanning and code scanning results surface in the IDE, so problems are visible before a commit exists.</p>
+          <span class="who"><strong>Owner:</strong> Developer</span>
+        </div>
+        <div class="phase">
+          <div class="step">02 Commit</div>
+          <h4>On push</h4>
+          <p>Push protection blocks commits containing live credentials. The secret never enters git history.</p>
+          <span class="who"><strong>Owner:</strong> Developer</span>
+        </div>
+        <div class="phase">
+          <div class="step">03 Review</div>
+          <h4>In the pull request</h4>
+          <p>CodeQL analysis and dependency review run as checks. Findings appear as inline comments with suggested fixes.</p>
+          <span class="who"><strong>Owner:</strong> Reviewer</span>
+        </div>
+        <div class="phase">
+          <div class="step">04 Build</div>
+          <h4>In CI/CD</h4>
+          <p>Merge protection can require the security checks to pass. Third-party scanner results feed into the same alert model via SARIF.</p>
+          <span class="who"><strong>Owner:</strong> Platform team</span>
+        </div>
+        <div class="phase">
+          <div class="step">05 Operate</div>
+          <h4>After release</h4>
+          <p>Scheduled scans and new advisories re-evaluate code already shipped. Dependabot opens update PRs when a CVE lands.</p>
+          <span class="who"><strong>Owner:</strong> Security team</span>
+        </div>
+      </div>
+
+      <h3 class="sub">Continuous, or an ad-hoc security exercise?</h3>
+      <p class="section-lede">Continuous, and in parallel with development. This is the single biggest difference from a classic scanning tool.</p>
+
+      <div class="grid-2">
+        <article class="card">
+          <div class="card-top">
+            <h3>Traditional security scan</h3>
+            <span class="tag">Ad hoc</span>
+          </div>
+          <p style="margin-top:0.6rem">A separate team runs a tool at the end of a release cycle, or once a quarter. Results arrive as a report, days or weeks after the code was written. The developer has moved on to other work and has to reload the whole context to fix anything. Findings compete with feature deadlines and often lose.</p>
+          <span class="plain"><strong>Result:</strong> a backlog of stale findings and a late, expensive fix.</span>
+        </article>
+        <article class="card">
+          <div class="card-top">
+            <h3>GHAS</h3>
+            <span class="tag green">Continuous</span>
+          </div>
+          <p style="margin-top:0.6rem">Analysis is triggered by the developer's own actions: every push, every pull request, plus a schedule on the default branch. The result lands within minutes, on the exact diff, while the code is still fresh in the author's head. Security work becomes part of the review, not a separate project.</p>
+          <span class="plain"><strong>Result:</strong> issues are fixed in the same pull request that created them.</span>
+        </article>
+      </div>
+
+      <div class="note">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+        <div><strong>Point-in-time scanning still has a place</strong> for penetration tests and compliance audits. GHAS does not replace those. It removes the routine, repeatable class of findings so the manual work can focus on what a scanner cannot see: business logic, authorisation design and architecture.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="workflow">
+    <div class="wrap">
+      <p class="kicker">Developer workflow</p>
+      <h2>What a developer actually experiences</h2>
+      <p class="section-lede">Nothing here asks a developer to open a new tool, log into a separate console, or learn a new vocabulary. The security signal arrives inside the pull request they already had open.</p>
+
+      <div class="timeline">
+        <div class="tl-item">
+          <div class="when">09:14 · Writing code</div>
+          <h4>The developer works normally</h4>
+          <p>No agent to install per machine, no local scan to remember to run. Configuration lives with the repository.</p>
+        </div>
+        <div class="tl-item">
+          <div class="when">09:41 · git push</div>
+          <h4>A hardcoded key is blocked</h4>
+          <p>Push protection rejects the push and names the credential type and file. The developer removes it, or requests a bypass that is logged for the security team.</p>
+        </div>
+        <div class="tl-item">
+          <div class="when">09:46 · Pull request opened</div>
+          <h4>Scans start automatically</h4>
+          <p>CodeQL analysis and dependency review run as GitHub Actions checks, in parallel with the unit tests. Typical feedback within minutes.</p>
+        </div>
+        <div class="tl-item">
+          <div class="when">09:53 · Review</div>
+          <h4>Findings appear on the diff</h4>
+          <p>Each alert is an inline comment on the offending line, with the data-flow path and severity. Copilot Autofix attaches a proposed code change the developer can commit directly.</p>
+        </div>
+        <div class="tl-item">
+          <div class="when">10:02 · Merge</div>
+          <h4>The gate is a branch rule, not a meeting</h4>
+          <p>Branch protection can require the security checks to pass before merge. Clean code goes in. Accepted risk is documented as a dismissal with a reason.</p>
+        </div>
+        <div class="tl-item">
+          <div class="when">Ongoing</div>
+          <h4>Old code keeps being checked</h4>
+          <p>Scheduled scans and new security advisories re-evaluate the default branch. If a dependency you shipped last year becomes vulnerable, Dependabot opens the update PR.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="why">
+    <div class="wrap">
+      <p class="kicker">The case for it</p>
+      <h2>Why Code Scanning and Secret Scanning matter</h2>
+      <p class="section-lede">These two features cover the two most common and most damaging root causes of application breaches: a flaw in the code, and a credential that got out.</p>
+
+      <div class="grid-2">
+        <article class="card">
+          <div class="card-icon red">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+          </div>
+          <h3>A leaked secret is immediately exploitable</h3>
+          <p>A vulnerability needs an attacker to find and weaponise it. A live API key needs nothing. Public repositories are continuously scraped by automated tooling, and a committed cloud credential can be used within minutes of the push.</p>
+          <span class="plain"><strong>And:</strong> deleting the line does not help. The secret stays in git history until it is revoked. Push protection is the only reliable answer, because it stops the commit from happening.</span>
+        </article>
+        <article class="card">
+          <div class="card-icon red">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17V7l4 10 4-10 4 10 4-10v10"/></svg>
+          </div>
+          <h3>Fix cost rises sharply with time</h3>
+          <p>A vulnerability caught in a pull request is a small edit by the person who wrote the code. The same vulnerability found in production is an incident: triage, a hotfix, a release, possibly a disclosure and a customer conversation.</p>
+          <span class="plain"><strong>And:</strong> code review by humans does not scale to every line of every PR. Automated analysis does, and it never skips a file because the sprint is ending.</span>
+        </article>
+      </div>
+
+      <h3 class="sub">Outcomes teams report</h3>
+      <div class="outcomes">
+        <div class="outcome">
+          <div class="big">Minutes</div>
+          <p>Time from writing insecure code to being told about it, instead of weeks.</p>
+        </div>
+        <div class="outcome">
+          <div class="big">In-PR</div>
+          <p>Most findings are resolved in the pull request that introduced them.</p>
+        </div>
+        <div class="outcome">
+          <div class="big">0 leaks</div>
+          <p>Push protection prevents new secrets entering history, rather than reporting them afterwards.</p>
+        </div>
+        <div class="outcome">
+          <div class="big">1 view</div>
+          <p>One security overview across all repositories, replacing scattered tool reports.</p>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <article class="card">
+          <h3>For developers</h3>
+          <p>Feedback on their own diff, in their own language, with a suggested fix. Less context switching, fewer surprise security tickets months later.</p>
+        </article>
+        <article class="card">
+          <h3>For security teams</h3>
+          <p>Coverage across every repository instead of sampling. Alerts with data-flow evidence, and campaigns to drive the backlog down with named owners.</p>
+        </article>
+        <article class="card">
+          <h3>For the business</h3>
+          <p>Fewer late-stage blockers before a release, auditable evidence of controls, and a consistent policy applied across the whole estate.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="pricing">
+    <div class="wrap">
+      <p class="kicker">Commercials</p>
+      <h2>Pricing and the metered model</h2>
+      <p class="section-lede">GHAS is licensed per <strong>active committer</strong>, billed monthly. An active committer is a developer who pushed at least one commit to a repository where the product is enabled, during that billing month. Someone who did not commit that month is not billed for that month.</p>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>List price</th>
+              <th>Metric</th>
+              <th>What you get</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>GitHub Secret Protection</strong></td>
+              <td class="price">$19</td>
+              <td class="muted">per active committer / month</td>
+              <td class="muted">Secret scanning, push protection, validity checks, custom patterns, partner alerts, historic scan.</td>
+            </tr>
+            <tr>
+              <td><strong>GitHub Code Security</strong></td>
+              <td class="price">$30</td>
+              <td class="muted">per active committer / month</td>
+              <td class="muted">CodeQL code scanning, Copilot Autofix, dependency review, security campaigns, SARIF ingest.</td>
+            </tr>
+            <tr>
+              <td><strong>Both together</strong></td>
+              <td class="price">$49</td>
+              <td class="muted">per active committer / month</td>
+              <td class="muted">The full GHAS scope. Matches the price of the legacy bundled GHAS licence.</td>
+            </tr>
+            <tr>
+              <td><strong>Public repositories</strong></td>
+              <td class="price">$0</td>
+              <td class="muted">free</td>
+              <td class="muted">Code scanning, secret scanning and dependency features are free on public repos.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="sub">How the metered model behaves</h3>
+      <div class="grid-3">
+        <article class="card">
+          <div class="card-icon green">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <h3>You pay for activity, not headcount</h3>
+          <p>The count is derived from commits in the billing period, not from a static seat list. Contractors who finish an engagement drop out of the count automatically.</p>
+        </article>
+        <article class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          </div>
+          <h3>Committers are deduplicated</h3>
+          <p>A developer working across ten enabled repositories is counted once, not ten times. The billing unit is the person in the enterprise, per month.</p>
+        </article>
+        <article class="card">
+          <div class="card-icon purple">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20v-3"/></svg>
+          </div>
+          <h3>You can enable it gradually</h3>
+          <p>Turn it on per repository or per organisation. Start with the repositories that carry real risk, watch the committer count, then widen the scope.</p>
+        </article>
+      </div>
+
+      <div class="note">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+        <div><strong>Prices are list prices</strong> for GitHub Enterprise Cloud and can change. Enterprise agreements, volume terms and GitHub Enterprise Server entitlements may differ. Confirm the current figures with your GitHub account team or on <a href="https://github.com/pricing" target="_blank" rel="noopener">github.com/pricing</a> before budgeting.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap">
+      <p class="kicker">Common questions</p>
+      <h2>Quick answers</h2>
+      <p class="section-lede">The questions that come up most often in the first conversation about GHAS.</p>
+
+      <details open>
+        <summary>Does it slow down the pull request?</summary>
+        <p>Scans run as checks in parallel with your existing tests, so they overlap with work that was happening anyway. Analysis time depends on repository size and language, and typically lands in minutes. You decide whether a failing security check blocks merge or is advisory.</p>
+      </details>
+      <details>
+        <summary>Will developers be buried in false positives?</summary>
+        <p>CodeQL traces actual data flow rather than matching keywords, which keeps noise well below a naive pattern scanner. Alerts can be dismissed with a documented reason, queries can be tuned per repository, and Copilot Autofix reduces the effort for the alerts that are real.</p>
+      </details>
+      <details>
+        <summary>Does it replace our existing security tools?</summary>
+        <p>Not necessarily. Third-party scanners can upload SARIF results into the same alert list, so GitHub becomes the single place developers look. Many teams keep a specialist tool and use GHAS as the always-on layer in the developer workflow.</p>
+      </details>
+      <details>
+        <summary>What happens to secrets already in our history?</summary>
+        <p>A historic scan flags them. The important step is revoking and rotating the credential, because it stays retrievable in git history even after the line is deleted. Push protection then prevents the next one from getting in.</p>
+      </details>
+      <details>
+        <summary>Can we enable it for just some repositories?</summary>
+        <p>Yes. Enablement is per repository, and can be applied at organisation level with security configurations so new repositories inherit the policy automatically. Billing follows the committers in the repositories you enabled.</p>
+      </details>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap footer-inner">
+    <div>GitHub Advanced Security overview · Updated September 2026</div>
+    <div class="footer-links">
+      <a href="https://onurpiskin.github.io/CustomerTKE-Copilot-Journey-GitHub/" target="_blank" rel="noopener">Resource hub</a>
+      <a href="https://docs.github.com/code-security" target="_blank" rel="noopener">Official docs</a>
+      <a href="https://github.com/pricing" target="_blank" rel="noopener">Pricing</a>
+      <a href="https://github.blog/changelog/label/code-security/" target="_blank" rel="noopener">Changelog</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    var btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      var root = document.documentElement;
+      var current = root.getAttribute('data-theme');
+      if (!current) {
+        current = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      var next = current === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('ghas-theme', next); } catch (e) {}
+    });
+  })();
+</script>
+
+</body>
+</html>
