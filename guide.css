@@ -90,6 +90,7 @@ details strong { color: var(--fg); }
 ol, ul { margin: 0 0 16px; padding-left: 22px; }
 li { margin-bottom: 7px; }
 .docs { display: flex; gap: 8px 16px; flex-wrap: wrap; margin: 18px 0 0; font-size: 12px; }
+.product-examples { margin-bottom: 28px; }
 .note { border: 1px solid var(--border); border-left: 3px solid var(--amber); border-radius: 8px; padding: 16px 20px; background: var(--soft); color: var(--muted); font-size: 13px; margin: 24px 0; }
 .note strong { color: var(--fg); }
 .note p:last-child { margin-bottom: 0; }

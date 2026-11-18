@@ -8,7 +8,7 @@ Published URL (unchanged): https://onurpiskin.github.io/ghas-explained/
 
 - Ten feature guides with expandable setup/use instructions and nearby official sources.
 - First-repository checklist, three independently controlled AI Scan capabilities, and separate organization rollout guidance.
-- Code, secret and dependency remediation examples; incoming SARIF/external CI and outgoing webhook/API integrations.
+- Code, secret and dependency remediation examples; incoming SARIF/external CI and outgoing webhook/API integrations. A source-linked product list covers GitHub Actions, Semgrep, Snyk, Trivy, Checkov, Jira, Slack, Microsoft Teams and Splunk, with connection methods and limitations.
 - Licensing, AI-credit usage and Actions costs, including the rolling **90-day pushed-commit** activity window.
 
 Targets GitHub.com / Enterprise Cloud. GHES availability must be checked against version-specific documentation. AI behavior, billing and public USD license list prices were verified on **18 November 2026**. Preview features and prices can change. This is not a quote; recheck [official pricing](https://github.com/security/plans) and [billing documentation](https://docs.github.com/en/billing/concepts/product-billing/github-advanced-security) before enablement.

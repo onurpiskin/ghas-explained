@@ -383,6 +383,27 @@
       <p class="kicker">Connect the workflow</p>
       <h2 id="integrations-title">Bring findings in. Send useful signals out.</h2>
       <p class="intro">An upload integration and a notification integration do different jobs. The labels below distinguish built-in capabilities from standards-based uploads and custom/API work. None implies a one-click connector.</p>
+      <details class="product-examples" id="integration-products" open>
+        <summary>Known products you can connect <span class="tag">9 examples</span></summary>
+        <p>Product names link to official implementation guidance. These examples are not bundled licenses or blanket native integrations. A generic GitHub app for a product does not necessarily support GHAS alerts.</p>
+        <div class="table-wrap" role="region" aria-label="Integration product examples, scroll horizontally on small screens" tabindex="0">
+          <table>
+            <caption>Choose a connection method, then use the setup and permission guidance below. Checked 18 November 2026.</caption>
+            <thead><tr><th scope="col">Product</th><th scope="col">Example use</th><th scope="col">Connection method and caveat</th></tr></thead>
+            <tbody>
+              <tr><td><a href="https://github.com/github/codeql-action">GitHub Actions</a></td><td>Run analysis and upload findings.</td><td><strong>Built-in workflow platform.</strong> Configure CodeQL analysis or the SARIF upload action. Workflows, permissions and applicable Actions costs still need attention.</td></tr>
+              <tr><td><a href="https://docs.semgrep.dev/semgrep-appsec-platform/json-and-sarif">Semgrep</a></td><td>Show code findings in GitHub code scanning.</td><td><strong>Standards-based SARIF.</strong> Export compatible Semgrep results and configure a GitHub SARIF upload. Running a Semgrep scan alone is not the upload step.</td></tr>
+              <tr><td><a href="https://github.com/snyk/actions#github-code-scanning-support">Snyk</a></td><td>Bring supported Snyk vulnerability findings into code scanning.</td><td><strong>Vendor Actions + SARIF.</strong> Use the relevant Snyk action and its documented code scanning upload flow. Snyk access and licensing are separate.</td></tr>
+              <tr><td><a href="https://github.com/aquasecurity/trivy-action">Aqua Trivy</a></td><td>Import image or repository scan findings.</td><td><strong>Vendor action + SARIF.</strong> Generate Trivy SARIF, then upload it with GitHub's upload-sarif action. Imported findings are code scanning alerts, not Dependabot alerts.</td></tr>
+              <tr><td><a href="https://www.checkov.io/8.Outputs/SARIF.html">Checkov</a></td><td>Bring infrastructure-as-code findings into code scanning.</td><td><strong>Standards-based SARIF.</strong> Export with <code>checkov -d . -o sarif</code>, then configure a supported upload. Scanner configuration and upload permissions are separate.</td></tr>
+              <tr><td><a href="https://github.com/github/ghas-jira-integration">Atlassian Jira</a></td><td>Create or update issues for selected security alerts.</td><td><strong>Custom/API integration.</strong> GitHub's linked Jira Server example is explicitly a proof of concept, not a managed production connector. Validate your Jira deployment/version and workflow before adapting it.</td></tr>
+              <tr><td><a href="https://docs.github.com/en/code-security/getting-started/auditing-security-alerts#webhooks">Slack</a></td><td>Notify a triage channel about a new alert.</td><td><strong>Custom webhook/API routing.</strong> A handler selects GitHub security-alert events and posts to an authorized Slack destination. Do not copy secret values into chat.</td></tr>
+              <tr><td><a href="https://docs.github.com/en/code-security/getting-started/auditing-security-alerts#webhooks">Microsoft Teams</a></td><td>Send selected alert events to a security team.</td><td><strong>Custom webhook/API routing.</strong> Connect a GitHub event handler to an approved Teams notification workflow or API. This is not a claim that the generic GitHub Teams app subscribes to every GHAS alert.</td></tr>
+              <tr><td><a href="https://docs.github.com/en/code-security/getting-started/auditing-security-alerts#webhooks">Splunk</a></td><td>Correlate security-alert events with other operational data.</td><td><strong>Custom webhook/API ingestion.</strong> Collect the relevant alert payloads and reconcile state. GitHub audit-log ingestion alone is not a complete GHAS findings feed.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
       <div class="grid">
         <article class="card">
           <span class="tag">Incoming / standards-based</span><h3>Third-party scanner findings</h3>
