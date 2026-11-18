@@ -1,808 +1,484 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GitHub Advanced Security (GHAS) — Explained</title>
-<meta name="description" content="What GitHub Advanced Security is, how Code Scanning and Secret Scanning work, how GHAS fits into the SDLC, how the metered pricing model works, and the outcomes teams get.">
-<meta name="color-scheme" content="dark light">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%233fb950'/%3E%3Ccircle cx='8' cy='8' r='3' fill='%230d1117'/%3E%3C/svg%3E">
-<script>
-  (function () {
-    var stored = null;
-    try { stored = localStorage.getItem('ghas-theme'); } catch (e) {}
-    if (stored === 'light' || stored === 'dark') {
-      document.documentElement.setAttribute('data-theme', stored);
-    } else {
-      document.documentElement.removeAttribute('data-theme');
-    }
-  })();
-</script>
-<style>
-  :root {
-    --canvas: #0d1117;
-    --canvas-inset: #010409;
-    --canvas-subtle: #151b23;
-    --surface: #151b23;
-    --surface-hover: #1c2129;
-    --border: #3d444d;
-    --border-subtle: #2a3038;
-    --fg: #f0f6fc;
-    --fg-muted: #9198a1;
-    --accent: #4493f8;
-    --accent-soft: rgba(68, 147, 248, 0.12);
-    --success: #3fb950;
-    --success-soft: rgba(63, 185, 80, 0.12);
-    --purple: #ab7df8;
-    --purple-soft: rgba(171, 125, 248, 0.12);
-    --attention: #d29922;
-    --attention-soft: rgba(210, 153, 34, 0.1);
-    --danger: #f85149;
-    --danger-soft: rgba(248, 81, 73, 0.12);
-    --shadow: 0 8px 24px rgba(1, 4, 9, 0.5);
-    --radius: 12px;
-    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
-    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  }
-
-  @media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) {
-      --canvas: #ffffff;
-      --canvas-inset: #f6f8fa;
-      --canvas-subtle: #f6f8fa;
-      --surface: #ffffff;
-      --surface-hover: #f6f8fa;
-      --border: #d1d9e0;
-      --border-subtle: #e4e8ed;
-      --fg: #1f2328;
-      --fg-muted: #59636e;
-      --accent: #0969da;
-      --accent-soft: rgba(9, 105, 218, 0.08);
-      --success: #1a7f37;
-      --success-soft: rgba(26, 127, 55, 0.08);
-      --purple: #8250df;
-      --purple-soft: rgba(130, 80, 223, 0.08);
-      --attention: #9a6700;
-      --attention-soft: rgba(154, 103, 0, 0.08);
-      --danger: #cf222e;
-      --danger-soft: rgba(207, 34, 46, 0.08);
-      --shadow: 0 8px 24px rgba(31, 35, 40, 0.12);
-    }
-  }
-
-  :root[data-theme="light"] {
-    --canvas: #ffffff;
-    --canvas-inset: #f6f8fa;
-    --canvas-subtle: #f6f8fa;
-    --surface: #ffffff;
-    --surface-hover: #f6f8fa;
-    --border: #d1d9e0;
-    --border-subtle: #e4e8ed;
-    --fg: #1f2328;
-    --fg-muted: #59636e;
-    --accent: #0969da;
-    --accent-soft: rgba(9, 105, 218, 0.08);
-    --success: #1a7f37;
-    --success-soft: rgba(26, 127, 55, 0.08);
-    --purple: #8250df;
-    --purple-soft: rgba(130, 80, 223, 0.08);
-    --attention: #9a6700;
-    --attention-soft: rgba(154, 103, 0, 0.08);
-    --danger: #cf222e;
-    --danger-soft: rgba(207, 34, 46, 0.08);
-    --shadow: 0 8px 24px rgba(31, 35, 40, 0.12);
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html { scroll-behavior: smooth; scroll-padding-top: 5rem; -webkit-text-size-adjust: 100%; }
-  body {
-    font-family: var(--font);
-    background: var(--canvas);
-    color: var(--fg);
-    line-height: 1.55;
-    font-size: 16px;
-    -webkit-font-smoothing: antialiased;
-  }
-  a { color: var(--accent); text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  svg { display: block; }
-  code { font-family: var(--mono); font-size: 0.86em; background: var(--canvas-inset); border: 1px solid var(--border-subtle); border-radius: 5px; padding: 0.1rem 0.35rem; }
-
-  .skip-link { position: absolute; left: -9999px; top: 0; z-index: 200; background: var(--accent); color: #fff; padding: 0.6rem 1rem; border-radius: 0 0 8px 0; }
-  .skip-link:focus { left: 0; }
-
-  .wrap { width: min(1080px, calc(100% - 3rem)); margin-inline: auto; }
-
-  /* Header */
-  header {
-    position: sticky; top: 0; z-index: 100;
-    background: color-mix(in srgb, var(--canvas) 88%, transparent);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border-subtle);
-  }
-  .header-inner { display: flex; align-items: center; gap: 1.5rem; height: 60px; }
-  .brand { display: flex; align-items: center; gap: 0.6rem; font-weight: 600; font-size: 0.95rem; letter-spacing: -0.01em; color: var(--fg); }
-  .brand:hover { text-decoration: none; }
-  .brand svg { width: 24px; height: 24px; fill: var(--fg); }
-  .brand span.sep { color: var(--border); font-weight: 400; }
-  .brand span.title { color: var(--fg-muted); font-weight: 500; }
-  nav { margin-left: auto; display: flex; align-items: center; gap: 1.4rem; }
-  nav a { color: var(--fg-muted); font-size: 0.875rem; font-weight: 500; }
-  nav a:hover { color: var(--fg); text-decoration: none; }
-  .theme-btn {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 32px; height: 32px; border-radius: 6px;
-    border: 1px solid var(--border); background: var(--surface);
-    color: var(--fg-muted); cursor: pointer; transition: color .15s, border-color .15s;
-  }
-  .theme-btn:hover { color: var(--fg); border-color: var(--fg-muted); }
-  .theme-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.7; }
-  :root[data-theme="light"] .icon-sun, :root:not([data-theme="dark"]) .icon-sun { display: none; }
-  :root[data-theme="light"] .icon-moon, :root:not([data-theme="dark"]) .icon-moon { display: block; }
-  .icon-moon { display: none; }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) .icon-sun { display: block; }
-    :root:not([data-theme="light"]) .icon-moon { display: none; }
-  }
-
-  /* Hero */
-  .hero { position: relative; padding: 5.5rem 0 4rem; overflow: hidden; }
-  .hero::before {
-    content: ""; position: absolute; inset: -30% -20% auto -20%; height: 70vh; pointer-events: none;
-    background:
-      radial-gradient(50% 50% at 22% 40%, var(--success-soft), transparent 70%),
-      radial-gradient(45% 45% at 78% 30%, var(--accent-soft), transparent 70%);
-  }
-  .hero-inner { position: relative; }
-  .badge {
-    display: inline-flex; align-items: center; gap: 0.45rem;
-    padding: 0.3rem 0.75rem; margin-bottom: 1.5rem;
-    border: 1px solid var(--border); border-radius: 999px;
-    background: var(--surface); color: var(--fg-muted);
-    font-size: 0.78rem; font-weight: 500;
-  }
-  .badge .pip { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
-  h1 { font-size: clamp(2.4rem, 6vw, 4.2rem); line-height: 1.05; letter-spacing: -0.035em; font-weight: 700; max-width: 18ch; margin-bottom: 1.25rem; }
-  .gradient { background: linear-gradient(120deg, var(--success), var(--accent) 70%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
-  .lede { max-width: 64ch; color: var(--fg-muted); font-size: clamp(1.02rem, 1.6vw, 1.2rem); margin-bottom: 2rem; }
-  .cta-row { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 3rem; }
-  .btn {
-    display: inline-flex; align-items: center; gap: 0.5rem;
-    padding: 0.6rem 1.05rem; border-radius: 8px; font-size: 0.9rem; font-weight: 600;
-    border: 1px solid var(--border); background: var(--surface); color: var(--fg);
-    transition: background .15s, border-color .15s, transform .15s;
-  }
-  .btn:hover { text-decoration: none; background: var(--surface-hover); border-color: var(--fg-muted); transform: translateY(-1px); }
-  .btn-primary { background: var(--success); border-color: transparent; color: #fff; }
-  .btn-primary:hover { background: color-mix(in srgb, var(--success) 88%, #000); border-color: transparent; }
-  .btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; }
-
-  .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border-subtle); border: 1px solid var(--border-subtle); border-radius: var(--radius); overflow: hidden; }
-  .stat { background: var(--surface); padding: 1.15rem 1.3rem; }
-  .stat dt { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.35rem; }
-  .stat dd { font-size: 0.92rem; color: var(--fg-muted); }
-  .stat dd strong { display: block; color: var(--fg); font-size: 1rem; font-weight: 600; margin-bottom: 0.15rem; }
-
-  /* Sections */
-  section { padding: 4rem 0; }
-  section:nth-of-type(even) { background: var(--canvas-inset); }
-  .kicker { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.65rem; }
-  h2 { font-size: clamp(1.7rem, 3.4vw, 2.5rem); line-height: 1.15; letter-spacing: -0.025em; font-weight: 700; margin-bottom: 0.85rem; }
-  h3.sub { font-size: 1.25rem; font-weight: 650; letter-spacing: -0.02em; margin: 2.5rem 0 1rem; }
-  .section-lede { max-width: 68ch; color: var(--fg-muted); font-size: 1.02rem; margin-bottom: 2.25rem; }
-
-  /* Pillars / feature cards */
-  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
-  .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
-  .card {
-    position: relative; border: 1px solid var(--border-subtle); border-radius: var(--radius);
-    background: var(--surface); padding: 1.6rem 1.4rem;
-    transition: border-color .2s, box-shadow .2s, transform .2s;
-  }
-  .card:hover { border-color: var(--border); box-shadow: var(--shadow); transform: translateY(-2px); }
-  .card-icon { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 10px; margin-bottom: 1rem; background: var(--accent-soft); color: var(--accent); }
-  .card-icon svg { width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-  .card-icon.green { background: var(--success-soft); color: var(--success); }
-  .card-icon.purple { background: var(--purple-soft); color: var(--purple); }
-  .card-icon.amber { background: var(--attention-soft); color: var(--attention); }
-  .card-icon.red { background: var(--danger-soft); color: var(--danger); }
-  .card h3 { font-size: 1.12rem; font-weight: 650; margin-bottom: 0.45rem; letter-spacing: -0.01em; }
-  .card p { color: var(--fg-muted); font-size: 0.92rem; }
-  .card .plain { display: block; margin-top: 1rem; padding-top: 0.85rem; border-top: 1px solid var(--border-subtle); color: var(--fg-muted); font-size: 0.85rem; }
-  .card .plain strong { color: var(--fg); font-weight: 600; }
-  .tag { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 999px; border: 1px solid var(--border); font-size: 0.71rem; font-weight: 600; color: var(--fg-muted); white-space: nowrap; }
-  .tag.green { color: var(--success); border-color: color-mix(in srgb, var(--success) 45%, transparent); background: var(--success-soft); }
-  .tag.blue { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: var(--accent-soft); }
-  .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
-
-  /* Feature detail blocks */
-  .feature { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius); overflow: hidden; background: var(--surface); margin-bottom: 1.5rem; }
-  .feature-text { padding: 2rem; }
-  .feature-text h3 { font-size: 1.45rem; font-weight: 680; letter-spacing: -0.025em; margin-bottom: 0.6rem; }
-  .feature-text p { color: var(--fg-muted); font-size: 0.95rem; margin-bottom: 1rem; }
-  .feature-vis { background: var(--canvas-inset); border-left: 1px solid var(--border-subtle); padding: 1.75rem; display: flex; flex-direction: column; justify-content: center; gap: 0.6rem; }
-  ul.checks { list-style: none; display: grid; gap: 0.55rem; }
-  ul.checks li { position: relative; padding-left: 1.6rem; color: var(--fg-muted); font-size: 0.92rem; }
-  ul.checks li::before { content: ""; position: absolute; left: 0; top: 0.45em; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--success); }
-  ul.checks li strong { color: var(--fg); font-weight: 600; }
-
-  /* Terminal-ish mock */
-  .mock { font-family: var(--mono); font-size: 0.78rem; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--canvas); overflow: hidden; }
-  .mock-bar { display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border-subtle); background: var(--canvas-subtle); color: var(--fg-muted); font-size: 0.72rem; }
-  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--border); }
-  .mock-body { padding: 0.85rem; display: grid; gap: 0.4rem; color: var(--fg-muted); line-height: 1.5; }
-  .mock-body .ln { display: flex; gap: 0.5rem; }
-  .mock-body .sev { flex-shrink: 0; font-weight: 700; }
-  .sev.high { color: var(--danger); }
-  .sev.med { color: var(--attention); }
-  .sev.ok { color: var(--success); }
-  .mock-body .fg { color: var(--fg); }
-
-  /* SDLC pipeline */
-  .pipeline { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--border-subtle); border: 1px solid var(--border-subtle); border-radius: var(--radius); overflow: hidden; }
-  .phase { background: var(--surface); padding: 1.4rem 1.15rem; position: relative; }
-  .phase::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: linear-gradient(90deg, var(--accent), var(--success)); }
-  .phase .step { font-family: var(--mono); font-size: 0.72rem; font-weight: 700; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.5rem; }
-  .phase h4 { font-size: 1rem; font-weight: 650; margin-bottom: 0.4rem; }
-  .phase p { font-size: 0.85rem; color: var(--fg-muted); }
-  .phase .who { display: block; margin-top: 0.8rem; padding-top: 0.6rem; border-top: 1px solid var(--border-subtle); font-size: 0.76rem; color: var(--fg-muted); }
-  .phase .who strong { color: var(--fg); }
-
-  /* Timeline */
-  .timeline { display: grid; gap: 0; border-left: 2px solid var(--border-subtle); margin-left: 0.5rem; }
-  .tl-item { position: relative; padding: 0 0 1.75rem 1.75rem; }
-  .tl-item::before { content: ""; position: absolute; left: -7px; top: 0.35rem; width: 12px; height: 12px; border-radius: 50%; background: var(--success); border: 2px solid var(--canvas); }
-  .tl-item h4 { font-size: 1.02rem; font-weight: 650; margin-bottom: 0.25rem; }
-  .tl-item p { color: var(--fg-muted); font-size: 0.92rem; }
-  .tl-item .when { font-family: var(--mono); font-size: 0.72rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.3rem; }
-
-  /* Table */
-  .table-scroll { overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: var(--radius); background: var(--surface); }
-  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 700px; }
-  thead { background: var(--canvas-inset); }
-  th, td { text-align: left; padding: 0.85rem 1.15rem; border-bottom: 1px solid var(--border-subtle); vertical-align: top; }
-  th { font-size: 0.76rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg-muted); }
-  tbody tr:last-child td { border-bottom: none; }
-  tbody tr:hover { background: var(--surface-hover); }
-  td strong { font-weight: 600; }
-  td.muted { color: var(--fg-muted); }
-  .price { font-family: var(--mono); font-weight: 700; color: var(--fg); white-space: nowrap; }
-
-  /* Note */
-  .note { display: flex; gap: 0.9rem; align-items: flex-start; border: 1px solid var(--border); border-left: 3px solid var(--attention); border-radius: 8px; background: var(--attention-soft); padding: 1.1rem 1.25rem; color: var(--fg-muted); font-size: 0.93rem; margin-top: 1.5rem; }
-  .note svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 0.15rem; stroke: var(--attention); fill: none; stroke-width: 1.8; }
-  .note strong { color: var(--fg); }
-  .note.info { border-left-color: var(--accent); background: var(--accent-soft); }
-  .note.info svg { stroke: var(--accent); }
-
-  /* Outcome metrics */
-  .outcomes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border-subtle); border: 1px solid var(--border-subtle); border-radius: var(--radius); overflow: hidden; margin-bottom: 2rem; }
-  .outcome { background: var(--surface); padding: 1.5rem 1.3rem; text-align: left; }
-  .outcome .big { font-size: 1.9rem; font-weight: 700; letter-spacing: -0.03em; background: linear-gradient(120deg, var(--success), var(--accent)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-  .outcome p { font-size: 0.85rem; color: var(--fg-muted); margin-top: 0.3rem; }
-
-  /* FAQ */
-  details { border: 1px solid var(--border-subtle); border-radius: 10px; background: var(--surface); margin-bottom: 0.75rem; overflow: hidden; }
-  summary { cursor: pointer; padding: 1rem 1.25rem; font-weight: 600; font-size: 0.97rem; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
-  summary::-webkit-details-marker { display: none; }
-  summary::after { content: "+"; color: var(--fg-muted); font-weight: 400; font-size: 1.3rem; line-height: 1; }
-  details[open] summary::after { content: "−"; }
-  summary:hover { background: var(--surface-hover); }
-  details p { padding: 0 1.25rem 1.15rem; color: var(--fg-muted); font-size: 0.92rem; }
-
-  footer { border-top: 1px solid var(--border-subtle); padding: 2.5rem 0; }
-  .footer-inner { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; align-items: center; color: var(--fg-muted); font-size: 0.85rem; }
-  .footer-links { display: flex; flex-wrap: wrap; gap: 1.25rem; }
-
-  @media (max-width: 900px) {
-    .grid-3, .grid-2, .stat-row, .feature, .pipeline, .outcomes { grid-template-columns: 1fr; }
-    .feature-vis { border-left: none; border-top: 1px solid var(--border-subtle); }
-    nav a { display: none; }
-  }
-  @media (max-width: 600px) {
-    .wrap { width: calc(100% - 2rem); }
-    .hero { padding: 3.5rem 0 2.5rem; }
-    section { padding: 3rem 0; }
-    .outcomes { grid-template-columns: repeat(2, 1fr); }
-  }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GHAS Explained | Understand, enable, use, fix</title>
+  <meta name="description" content="A practical GitHub Advanced Security guide. Set up CodeQL, secret protection and Dependabot, understand AI Scan and costs, and work findings through to resolution.">
+  <meta name="color-scheme" content="dark light">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='8' fill='%233fb950'/%3E%3Ccircle cx='8' cy='8' r='3' fill='%230d1117'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="guide.css">
+  <script src="guide.js" defer></script>
 </head>
 <body>
-
-<a class="skip-link" href="#main">Skip to content</a>
-
+<a class="skip" href="#main">Skip to content</a>
 <header>
-  <div class="wrap header-inner">
-    <a class="brand" href="#main">
-      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>
-      GitHub <span class="sep">/</span> <span class="title">Advanced Security</span>
-    </a>
-    <nav>
-      <a href="#what">What it is</a>
-      <a href="#features">Features</a>
-      <a href="#sdlc">SDLC</a>
-      <a href="#workflow">Workflow</a>
-      <a href="#pricing">Pricing</a>
-      <button class="theme-btn" id="theme-toggle" type="button" aria-label="Toggle color scheme">
-        <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-        <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg>
-      </button>
+  <div class="wrap">
+    <div class="topbar">
+      <a class="brand" href="#overview" aria-label="GHAS Explained overview">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38v-2.2c0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82a7.65 7.65 0 0 0-4 0c-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94v1.49c0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>
+        GHAS Explained <span>/ Practical guide</span>
+      </a>
+      <button class="theme" id="theme-toggle" type="button" hidden>Switch theme</button>
+    </div>
+    <nav aria-label="Guide sections">
+      <a href="#overview">Overview</a>
+      <a href="#features">Feature explorer</a>
+      <a href="#setup">First-repository setup</a>
+      <a href="#ai-scan">AI Scan</a>
+      <a href="#resolve">Resolve findings</a>
+      <a href="#integrations">Integrations</a>
+      <a href="#rollout">Organization rollout</a>
+      <a href="#pricing">Pricing / FAQ</a>
     </nav>
   </div>
 </header>
-
 <main id="main">
-
-  <div class="hero">
-    <div class="wrap hero-inner">
-      <div class="badge"><span class="pip"></span> Customer-shareable overview of GitHub Advanced Security</div>
-      <h1>Security that runs <span class="gradient">while developers code</span>, not weeks later.</h1>
-      <p class="lede">GitHub Advanced Security (GHAS) puts code analysis, secret detection and dependency checks directly inside the repository and the pull request. Vulnerabilities and leaked credentials surface at the moment the code is written, in the same place the developer already works.</p>
-
-      <div class="cta-row">
-        <a class="btn btn-primary" href="#features">See the features <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-        <a class="btn" href="#sdlc">GHAS in the SDLC</a>
-        <a class="btn" href="#pricing">Pricing model</a>
+  <div class="hero" id="overview">
+    <div class="wrap">
+      <div class="hero-grid">
+        <div>
+          <p class="eyebrow"><span class="pip"></span> From overview to everyday use</p>
+          <h1>Find the risk.<br><span>Know what to do next.</span></h1>
+          <p class="lede">Understand GitHub Advanced Security, enable the right controls on your first repository, and take a finding all the way to a reviewed fix.</p>
+          <div class="actions">
+            <a class="btn primary" href="#setup">Set up your first repository</a>
+            <a class="btn" href="#features">Explore the features</a>
+          </div>
+        </div>
+        <div class="console" aria-label="Illustrative security workflow, not live repository data">
+          <div class="console-bar">example / web-app &nbsp; / &nbsp; security</div>
+          <div class="console-body">
+            <p class="console-label">ILLUSTRATIVE WORKFLOW, NOT LIVE RESULTS</p>
+            <div class="console-row"><span class="state" aria-hidden="true">01</span><div><b>A push contains a supported secret</b><p>Push protection can block it before acceptance.</p></div></div>
+            <div class="console-row"><span class="state" aria-hidden="true">02</span><div><b>A pull request introduces a risky path</b><p>Configured scanners surface findings for review.</p></div></div>
+            <div class="console-row"><span class="state" aria-hidden="true">03</span><div><b>A developer reviews and tests the fix</b><p>Merge, then confirm the finding is resolved.</p></div></div>
+          </div>
+        </div>
       </div>
-
-      <dl class="stat-row">
-        <div class="stat">
-          <dt>Continuous</dt>
-          <dd><strong>Not an audit</strong>Scans run on every push and every pull request, in parallel with normal development.</dd>
-        </div>
-        <div class="stat">
-          <dt>In the workflow</dt>
-          <dd><strong>No new tool</strong>Findings appear as PR comments, checks and alerts in GitHub. No separate portal to learn.</dd>
-        </div>
-        <div class="stat">
-          <dt>Metered</dt>
-          <dd><strong>Active committers</strong>You pay per developer who actually commits to an enabled repository, per month.</dd>
-        </div>
-      </dl>
+      <div class="journey" aria-label="Learning path">
+        <a href="#features"><span>01</span> Understand<small>Choose the right capability</small></a>
+        <a href="#setup"><span>02</span> Enable<small>Start with one repository</small></a>
+        <a href="#ai-scan"><span>03</span> Use<small>Know what runs and costs</small></a>
+        <a href="#resolve"><span>04</span> Fix<small>Close the loop, not just the alert</small></a>
+      </div>
+      <div class="note"><strong>Continuous is not every keystroke.</strong> Protection runs on configured events or schedules. Some scans are on demand. This guide does not enable automatic IDE scanning, and no scanner guarantees complete coverage.</div>
     </div>
   </div>
 
-  <section id="what">
+  <section id="features" aria-labelledby="features-title">
     <div class="wrap">
-      <p class="kicker">Start here</p>
-      <h2>What GHAS actually is</h2>
-      <p class="section-lede">GHAS is a set of security capabilities built into GitHub itself. Instead of sending code to an external scanner and waiting for a report, the analysis runs on GitHub's own infrastructure, against the repository, and writes results back into the developer's normal workflow.</p>
-
-      <div class="grid-3">
-        <article class="card">
-          <div class="card-icon green">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6 2 12l6 6M16 6l6 6-6 6"/></svg>
-          </div>
-          <h3>Find flaws in your own code</h3>
-          <p>Code Scanning analyses the source you write and flags issues such as SQL injection, cross-site scripting or unsafe deserialisation before they ever reach production.</p>
-          <span class="plain"><strong>In plain words:</strong> a very thorough reviewer that reads every line, every time, and never gets tired.</span>
-        </article>
-        <article class="card">
-          <div class="card-icon amber">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="4"/><path d="M12 12h9M17 12v4M20 12v3"/></svg>
-          </div>
-          <h3>Stop credentials leaking</h3>
-          <p>Secret Scanning looks for API keys, tokens, passwords and certificates in code, commits, issues and history, and can block a push that contains one.</p>
-          <span class="plain"><strong>In plain words:</strong> a bouncer at the door that checks nobody is carrying the office keys out of the building.</span>
-        </article>
-        <article class="card">
-          <div class="card-icon purple">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7v6c0 5 3.4 7.7 8 9 4.6-1.3 8-4 8-9V7l-8-4Z"/><path d="m9 12 2 2 4-4"/></svg>
-          </div>
-          <h3>Fix instead of just report</h3>
-          <p>Copilot Autofix proposes a concrete code change for most alerts. The developer reviews a suggested diff rather than reading a PDF finding and researching a remedy.</p>
-          <span class="plain"><strong>In plain words:</strong> the tool does not only say "this is broken", it offers the patch.</span>
-        </article>
+      <p class="kicker">01 / Understand</p>
+      <h2 id="features-title">A feature for each kind of risk</h2>
+      <p class="intro">GHAS is a family of capabilities, not one scan. Code Security and Secret Protection are paid products for eligible private/internal repositories; purchasing them requires GitHub Team or Enterprise. Basic dependency protection is included in GitHub plans. Expand only what you need. <a href="https://docs.github.com/en/enterprise-cloud@latest/get-started/learning-about-github/about-github-advanced-security">Product and plan eligibility</a>.</p>
+      <div class="chips" aria-label="Jump to a feature">
+        <a href="#codeql">CodeQL</a><a href="#secrets">Secret scanning</a><a href="#push">Push protection</a>
+        <a href="#dependabot">Dependabot alerts</a><a href="#security-updates">Security updates</a><a href="#version-updates">Version updates</a>
+        <a href="#dependency-review">Dependency review</a><a href="#autofix">Copilot Autofix</a><a href="#campaigns">Campaigns</a><a href="#security-overview">Security overview</a>
       </div>
-
-      <div class="note info">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
-        <div><strong>Naming note.</strong> GitHub restructured the bundle in 2025. What was sold as one "Advanced Security" add-on is now two products you can buy separately: <strong>GitHub Secret Protection</strong> (secret scanning, push protection, validity checks) and <strong>GitHub Code Security</strong> (code scanning with CodeQL, Copilot Autofix, dependency review, security campaigns). People still say "GHAS" for both together.</div>
-      </div>
-    </div>
-  </section>
-
-  <section id="features">
-    <div class="wrap">
-      <p class="kicker">Capabilities</p>
-      <h2>The two core features, explained simply</h2>
-      <p class="section-lede">Code Scanning and Secret Scanning solve two different problems. One looks for mistakes in the logic you wrote. The other looks for credentials that should never have been committed at all.</p>
-
-      <article class="feature">
-        <div class="feature-text">
-          <div class="card-top">
-            <h3>Code Scanning</h3>
-            <span class="tag green">Code Security</span>
-          </div>
-          <p>Static analysis powered by CodeQL. Your code is turned into a queryable database, then hundreds of security queries run against it to trace how untrusted input flows through the application into a dangerous operation.</p>
-          <ul class="checks">
-            <li><strong>Runs on every pull request</strong> and on a schedule against the default branch.</li>
-            <li><strong>Comments inline on the diff</strong> so the developer sees the problem at the exact line.</li>
-            <li><strong>Data-flow aware</strong>, so it catches an unsafe path across several files, not just a bad-looking keyword.</li>
-            <li><strong>Supports third-party scanners</strong> via SARIF upload, so existing tools report into the same alert list.</li>
-            <li><strong>Copilot Autofix</strong> suggests the fix as a reviewable diff.</li>
-          </ul>
-        </div>
-        <div class="feature-vis">
-          <div class="mock">
-            <div class="mock-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> &nbsp;Pull request #482 · checks</div>
-            <div class="mock-body">
-              <div class="ln"><span class="sev high">✕ HIGH</span><span>SQL injection in <span class="fg">api/orders.py:41</span></span></div>
-              <div class="ln"><span class="sev">↳</span><span>User input from <span class="fg">request.args['id']</span> reaches <span class="fg">cursor.execute()</span> unsanitised</span></div>
-              <div class="ln"><span class="sev ok">✓ FIX</span><span>Copilot Autofix suggested: use a parameterised query</span></div>
-              <div class="ln"><span class="sev med">! MED</span><span>Path traversal in <span class="fg">utils/files.py:88</span></span></div>
-              <div class="ln"><span class="sev ok">✓</span><span>47 other queries passed</span></div>
-            </div>
-          </div>
-        </div>
-      </article>
-
-      <article class="feature">
-        <div class="feature-text">
-          <div class="card-top">
-            <h3>Secret Scanning</h3>
-            <span class="tag blue">Secret Protection</span>
-          </div>
-          <p>Pattern matching for credentials, built with more than 200 partner providers. It checks new commits, the full git history, plus issues, pull request bodies and descriptions.</p>
-          <ul class="checks">
-            <li><strong>Push protection</strong> rejects the push before the secret ever lands in the repository.</li>
-            <li><strong>Validity checks</strong> ask the provider whether a found token is still live, so you triage real risk first.</li>
-            <li><strong>Partner alerts</strong> notify the issuer (AWS, Azure, Stripe and others) so the credential can be revoked.</li>
-            <li><strong>Historic scan</strong> of the whole repository, because a secret committed two years ago is still a secret.</li>
-            <li><strong>Custom patterns</strong> for your own internal token formats.</li>
-          </ul>
-        </div>
-        <div class="feature-vis">
-          <div class="mock">
-            <div class="mock-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span> &nbsp;git push origin feature/payments</div>
-            <div class="mock-body">
-              <div class="ln"><span class="sev high">✕</span><span class="fg">Push rejected — secret detected</span></div>
-              <div class="ln"><span class="sev">·</span><span>Type: <span class="fg">Stripe live API key</span></span></div>
-              <div class="ln"><span class="sev">·</span><span>File: <span class="fg">config/payments.env:12</span></span></div>
-              <div class="ln"><span class="sev">·</span><span>Status: <span class="fg">active credential</span></span></div>
-              <div class="ln"><span class="sev ok">→</span><span>Remove the secret, or request a bypass with justification</span></div>
-            </div>
-          </div>
-        </div>
-      </article>
-
-      <h3 class="sub">The rest of the toolkit</h3>
-      <div class="grid-3">
-        <article class="card">
-          <div class="card-icon">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v6M12 22v-6M4.9 7l5.2 3M13.9 14l5.2 3M4.9 17l5.2-3M13.9 10l5.2-3"/><circle cx="12" cy="12" r="2.5"/></svg>
-          </div>
-          <h3>Dependency review &amp; Dependabot</h3>
-          <p>Shows the security impact of a dependency change inside the pull request, and opens automated update PRs for vulnerable packages.</p>
-          <span class="plain"><strong>Why it matters:</strong> most application code today is other people's code.</span>
+      <div class="grid">
+        <article class="card" id="codeql">
+          <span class="tag">Code Security / public-repo access</span>
+          <h3>CodeQL code scanning</h3>
+          <p>Find vulnerable patterns and data flows in your own source code. CodeQL is a static analysis engine; code scanning is where GitHub displays the results.</p>
+          <p class="example"><small>Illustrative example</small>User-controlled input flows into a SQL query without parameterization.</p>
+          <p class="when"><strong>Runs:</strong> default setup scans on enablement, qualifying pushes/PRs, and an activity-dependent schedule.</p>
+          <details><summary>Setup <span class="sr-context">CodeQL</span></summary>
+            <p><strong>Need:</strong> repository admin or a role allowed to manage security settings, Actions enabled, and public visibility or Code Security entitlement. Default setup cannot coexist with an existing advanced setup.</p>
+            <ol><li>Open <strong>Settings &gt; Advanced Security &gt; Code Security</strong>.</li><li>Under CodeQL analysis, select <strong>Set up &gt; Default</strong>. Review detected languages and query suite.</li><li>Enable CodeQL and check the first analysis. Use advanced setup if you need custom builds or workflow triggers.</li></ol>
+          </details>
+          <details><summary>Use it <span class="sr-context">CodeQL</span></summary>
+            <p>Open <strong>Security and quality &gt; Code scanning</strong>, or a PR annotation. Inspect the rule and any data-flow path, assign an owner, then follow the <a href="#resolve-code">code resolution workflow</a>.</p>
+            <p><strong>Verify:</strong> confirm a successful analysis for the expected language and commit, not just that the toggle is on.</p>
+            <p><strong>Limits/cost:</strong> supported languages and query coverage only. Default-setup PRs from forks are excluded. Weekly scans require qualifying activity; inactive-repository scanning has separate organization settings. Private/internal use needs Code Security; Actions charges can apply.</p>
+          </details>
+          <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/how-tos/find-and-fix-code-vulnerabilities/configure-code-scanning/configure-code-scanning">Default setup steps</a><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/code-scanning/setup-types">Triggers and setup types</a></p>
         </article>
-        <article class="card">
-          <div class="card-icon">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6"/></svg>
-          </div>
-          <h3>Security overview</h3>
-          <p>One org-level dashboard showing risk and coverage across every repository: which repos are enabled, where the open alerts sit, and how fast they are being closed.</p>
-          <span class="plain"><strong>Why it matters:</strong> security leads need the aggregate view, not 400 repo tabs.</span>
+        <article class="card" id="secrets">
+          <span class="tag">Secret Protection / public-repo access</span>
+          <h3>Secret scanning</h3>
+          <p>Detect exposed credentials using supported provider patterns, with additional generic, custom, and AI detection options where available.</p>
+          <p class="example"><small>Illustrative example, fake value</small><code>API_TOKEN=DEMO_NOT_A_VALID_CREDENTIAL</code> represents a leaked key. This placeholder is not a detection test.</p>
+          <p class="when"><strong>Runs:</strong> scans existing repository history on enablement and new content as it is added, within supported detection scope.</p>
+          <details><summary>Setup <span class="sr-context">secret scanning</span></summary>
+            <p><strong>Need:</strong> admin/security-settings permission and Secret Protection for private/internal repositories. Public repositories have free supported secret scanning.</p>
+            <ol><li>Open <strong>Settings &gt; Advanced Security &gt; Secret Protection</strong>.</li><li>Enable secret scanning if it is not already enabled. Review the initial history scan.</li><li>Choose additional detection options deliberately. Before AI-detected push protection, set a hard <strong>Secret Protection AI credits</strong> budget.</li></ol>
+          </details>
+          <details><summary>Use it <span class="sr-context">secret scanning</span></summary>
+            <p>Open <strong>Security and quality &gt; Secret scanning</strong>. Review the type, locations, and validity information when available. Start with <strong>revoke/rotate</strong>, not deleting the line.</p>
+            <p><strong>Verify:</strong> confirm revocation with the issuer, then document remediation and resolve the alert with the correct reason.</p>
+            <p><strong>Limits/cost:</strong> pattern and location coverage vary. Not every credential has a validity check. Generic and AI detections have additional limits and can be false positives. Private/internal entitlement and optional AI-credit charges are separate.</p>
+          </details>
+          <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/secret-security/secret-scanning">Detection and scope</a><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/secret-security/about-alerts">Alert types</a></p>
         </article>
-        <article class="card">
-          <div class="card-icon">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
-          </div>
+        <article class="card" id="push">
+          <span class="tag">Secret Protection / public-repo access</span>
+          <h3>Push protection</h3>
+          <p>Block pushes containing supported secrets before GitHub accepts them. This is prevention at push time, separate from detecting secrets already present.</p>
+          <p class="example"><small>Illustrative example</small>A contributor removes a detected token from every affected commit before retrying a blocked push.</p>
+          <p class="when"><strong>Runs:</strong> during supported push and GitHub content-creation flows, not while you type.</p>
+          <details><summary>Setup <span class="sr-context">push protection</span></summary>
+            <p><strong>Need:</strong> repository admin/security-settings permission, secret scanning, and applicable Secret Protection entitlement.</p>
+            <ol><li>In <strong>Settings &gt; Advanced Security &gt; Secret Protection</strong>, enable repository push protection.</li><li>Define who may bypass or approve bypass requests. Delegated bypass needs the appropriate paid feature.</li><li>Tell contributors how to remove a secret from unpushed commits and how to request a legitimate bypass.</li></ol>
+          </details>
+          <details><summary>Use it <span class="sr-context">push protection</span></summary>
+            <p>Follow the blocked-push instructions. Rotate a real credential if exposed; remove it from all implicated commits. Review bypass alerts in Secret scanning.</p>
+            <p><strong>Verify:</strong> check effective repository settings and audit a controlled, approved non-live test using the official instructions. Never push a real credential to test protection.</p>
+            <p><strong>Limits/cost:</strong> only supported secrets and flows; bypasses and detection limits exist. User-level public-repo protection is not the same as repository protection. Optional AI-detected secret push protection consumes AI credits even if no secret is found.</p>
+          </details>
+          <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/how-tos/secure-your-secrets/prevent-future-leaks/enable-push-protection">Enable push protection</a><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/reference/secret-security/secret-scanning-scope">Detection limits</a></p>
+        </article>
+        <article class="card" id="dependabot">
+          <span class="tag free">Built in / no GHAS license required</span>
+          <h3>Dependabot alerts</h3>
+          <p>Match dependencies in the dependency graph against known vulnerabilities in the GitHub Advisory Database.</p>
+          <p class="example"><small>Illustrative example</small>A new advisory affects the version of a library already in your lockfile.</p>
+          <p class="when"><strong>Runs:</strong> when the graph changes or relevant advisory information changes.</p>
+          <details><summary>Setup <span class="sr-context">Dependabot alerts</span></summary>
+            <p><strong>Need:</strong> admin/security-settings permission and a supported manifest or submitted dependency graph.</p>
+            <ol><li>Open <strong>Settings &gt; Advanced Security</strong> and enable the dependency graph.</li><li>Enable <strong>Dependabot alerts</strong>.</li><li>Check graph coverage and set notification/triage ownership.</li></ol>
+          </details>
+          <details><summary>Use it <span class="sr-context">Dependabot alerts</span></summary>
+            <p>Open <strong>Security and quality &gt; Dependabot</strong>. Read the advisory, affected range and fix availability. Prioritize actual exposure and update the package.</p>
+            <p><strong>Verify:</strong> inspect the dependency graph and confirm the alert no longer applies after an update lands.</p>
+            <p><strong>Limits/cost:</strong> alerts are free for public and private repositories. Coverage depends on supported ecosystems and graph completeness. An alert does not guarantee an update PR or exploitability in your application.</p>
+          </details>
+          <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/supply-chain-security/dependabot-alerts">How alerts work</a><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/configure-dependabot-alerts">Configure alerts</a></p>
+        </article>
+        <article class="card" id="security-updates">
+          <span class="tag free">Built in / no GHAS license required</span>
+          <h3>Dependabot security updates</h3>
+          <p>Try to open a pull request that upgrades a vulnerable dependency to a patched version.</p>
+          <p class="example"><small>Illustrative example</small>An alert leads to a patch-version update PR, linked back to the advisory.</p>
+          <p class="when"><strong>Runs:</strong> in response to eligible Dependabot alerts with an available fix.</p>
+          <details><summary>Setup <span class="sr-context">security updates</span></summary>
+            <p><strong>Need:</strong> admin/security-settings permission, dependency graph, Dependabot alerts and a supported manifest/lockfile.</p>
+            <ol><li>Enable <strong>Dependabot security updates</strong> in Advanced Security settings.</li><li>Configure access to private registries using Dependabot secrets if required.</li><li>Decide whether to group updates and identify reviewers. Leave auto-merge off until your review/test policy is ready.</li></ol>
+          </details>
+          <details><summary>Use it <span class="sr-context">security updates</span></summary>
+            <p>Review the Dependabot PR, release notes, manifest and lockfile diff. Run compatibility tests before merging.</p>
+            <p><strong>Verify:</strong> check the linked alert after merge and investigate Dependabot errors if no PR can be created.</p>
+            <p><strong>Limits/cost:</strong> the basic feature is free on public/private repositories; CI on its PRs can have Actions costs. No compatible patch, registry access problems or ecosystem limits can prevent a PR. Premium custom auto-triage is separate.</p>
+          </details>
+          <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/supply-chain-security/dependabot-security-updates">Security updates</a><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/configure-security-updates">Setup steps</a></p>
+        </article>
+        <article class="card" id="version-updates">
+          <span class="tag free">Built in / no GHAS license required</span>
+          <h3>Dependabot version updates</h3>
+          <p>Keep dependencies current with scheduled update PRs, even when there is no security advisory.</p>
+          <p class="example"><small>Illustrative example</small>A weekly PR updates a GitHub Action or application library to a newer release.</p>
+          <p class="when"><strong>Runs:</strong> on the schedule you set in <code>.github/dependabot.yml</code>.</p>
+          <details><summary>Setup <span class="sr-context">version updates</span></summary>
+            <p><strong>Need:</strong> write access to add configuration, supported package ecosystem, registry access and repository policy allowing Dependabot.</p>
+            <ol><li>Add <code>.github/dependabot.yml</code> on the default branch.</li><li>Set <code>version: 2</code> and an <code>updates</code> entry with package ecosystem, manifest directory and schedule.</li><li>Configure reviewers/groups and private registry secrets as needed. Review and merge the configuration.</li></ol>
+          </details>
+          <details><summary>Use it <span class="sr-context">version updates</span></summary>
+            <p>Review scheduled PRs like any dependency change. Check breaking changes, licenses and tests, not just version numbers.</p>
+            <p><strong>Verify:</strong> open the repository's Dependabot update jobs and confirm a successful check of the intended directory.</p>
+            <p><strong>Limits/cost:</strong> free for public/private repositories, separate from security updates and alert enablement. Ecosystem support, PR limits and registry access apply. CI and runner costs can still apply.</p>
+          </details>
+          <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/supply-chain-security/dependabot-version-updates">Version updates</a><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/configure-version-updates">Configuration guide</a></p>
+        </article>
+        <article class="card" id="dependency-review">
+          <span class="tag">Code Security / public-repo access</span>
+          <h3>Dependency review</h3>
+          <p>See what a pull request changes in the dependency graph, including known vulnerable versions and license information.</p>
+          <p class="example"><small>Illustrative example</small>A PR adds a dependency with a high-severity advisory. A configured review action fails its check.</p>
+          <p class="when"><strong>Runs:</strong> review the PR dependency diff; the optional action runs on configured PR events.</p>
+          <details><summary>Setup <span class="sr-context">dependency review</span></summary>
+            <p><strong>Need:</strong> dependency graph, write access for a workflow, Actions, and Code Security for private repositories.</p>
+            <ol><li>Open a manifest/lockfile PR and inspect <strong>Files changed &gt; Dependency review</strong>.</li><li>For enforcement, add the official <code>actions/dependency-review-action</code> PR workflow with least-privilege <code>contents: read</code>.</li><li>Choose severity/license policy; make its successful check required through a compatible ruleset.</li></ol>
+          </details>
+          <details><summary>Use it <span class="sr-context">dependency review</span></summary>
+            <p>Review added/removed packages and advisory links. Upgrade or replace a risky addition before merge.</p>
+            <p><strong>Verify:</strong> confirm the action runs and the intended branch rule actually requires its check.</p>
+            <p><strong>Limits/cost:</strong> public-repo access is free; private use requires Code Security. Actions usage may be billed. Supported graph data only; the diff view alone is not a merge gate.</p>
+          </details>
+          <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/supply-chain-security/dependency-review">Dependency review</a><a href="https://github.com/actions/dependency-review-action">Official action and examples</a></p>
+        </article>
+        <article class="card" id="autofix">
+          <span class="tag">Classic Autofix / no AI-credit charge</span>
+          <h3>Copilot Autofix</h3>
+          <p>Suggest a code change and explanation for supported code scanning findings. A suggestion is a starting point for review, not a verified fix.</p>
+          <p class="example"><small>Illustrative example</small>Autofix proposes a parameterized query. A developer checks semantics and adds a regression test.</p>
+          <p class="when"><strong>Runs:</strong> for supported findings in PRs or when a fix is requested for an eligible backlog alert.</p>
+          <details><summary>Setup <span class="sr-context">Copilot Autofix</span></summary>
+            <p><strong>Need:</strong> code scanning and public-repo access or Code Security. A separate Copilot subscription is not needed for classic Autofix.</p>
+            <ol><li>Enable code scanning and review enterprise/organization Autofix policy.</li><li>Check the repository's <strong>Code scanning Autofix</strong> setting.</li><li>Provide CI tests and reviewers before applying generated changes.</li></ol>
+          </details>
+          <details><summary>Use it <span class="sr-context">Copilot Autofix</span></summary>
+            <p>Open a supported alert or PR suggestion, read the explanation and full diff, edit as needed, then test and submit for review.</p>
+            <p><strong>Verify:</strong> rerun analysis and functional/security tests. Confirm the alert status after merge.</p>
+            <p><strong>Limits/cost:</strong> no guarantee a suggestion is available or correct. Classic Copilot Autofix does <strong>not</strong> consume AI credits. <strong>Agentic autofix</strong> is a separate capability that can prepare a draft fix PR and consumes Code Security AI credits and Actions minutes. Budget and enable it separately, then review and test its changes too.</p>
+          </details>
+          <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/code-scanning/autofix-for-code-scanning">Autofix modes and availability</a><a href="https://docs.github.com/en/billing/concepts/product-billing/github-advanced-security#how-ai-feature-usage-is-billed">AI billing distinction</a></p>
+        </article>
+        <article class="card" id="campaigns">
+          <span class="tag">Organization / applicable paid security product</span>
           <h3>Security campaigns</h3>
-          <p>Bundle a set of existing alerts into a tracked remediation effort, assign them to the right teams, and drive the backlog down with Autofix suggestions attached.</p>
-          <span class="plain"><strong>Why it matters:</strong> turns a long alert list into finite, assignable work.</span>
+          <p>Group a bounded set of existing alerts into an owned remediation effort with a due date.</p>
+          <p class="example"><small>Illustrative example</small>A security team asks repository owners to address a selected set of injection alerts before a release.</p>
+          <p class="when"><strong>Runs:</strong> you create and publish a campaign; it tracks work against the selected alerts.</p>
+          <details><summary>Setup <span class="sr-context">security campaigns</span></summary>
+            <p><strong>Need:</strong> organization owner/security manager permissions, relevant alerts and Code Security for code campaigns or Secret Protection for secret campaigns.</p>
+            <ol><li>Open the organization's <strong>Security and quality &gt; Campaigns &gt; Create campaign</strong>.</li><li>Choose a template or filter a focused set of alerts.</li><li>Set a manager, due date and contact link. Review a draft, then publish.</li></ol>
+          </details>
+          <details><summary>Use it <span class="sr-context">security campaigns</span></summary>
+            <p>Assign owners, review progress and help teams resolve blockers. Code alerts may offer Autofix; exposed secrets still require issuer-side remediation.</p>
+            <p><strong>Verify:</strong> inspect resolved alert states, not just assigned work or opened PRs.</p>
+            <p><strong>Limits/cost:</strong> code campaigns use default-branch alerts. Secret campaigns are public preview with different tracking behavior. Agentic fix assignments can consume AI credits; a campaign is not automatic remediation.</p>
+          </details>
+          <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/security-at-scale/about-security-campaigns">Campaign types and limits</a><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/how-tos/manage-security-alerts/remediate-alerts-at-scale/creating-managing-security-campaigns">Create a campaign</a></p>
+        </article>
+        <article class="card" id="security-overview">
+          <span class="tag">Organization / visibility and plan dependent</span>
+          <h3>Security overview</h3>
+          <p>See adoption and risk across repositories you are allowed to view. Use Coverage to find missing controls, then risk views to prioritize findings.</p>
+          <p class="example"><small>Illustrative example</small>A repository has no alerts because CodeQL was never enabled. Coverage makes that gap visible.</p>
+          <p class="when"><strong>Runs:</strong> views reflect collected feature data; they do not initiate an exhaustive scan.</p>
+          <details><summary>Setup <span class="sr-context">security overview</span></summary>
+            <p><strong>Need:</strong> organization/enterprise access to security overview, appropriate security role and access to the underlying repositories/alerts.</p>
+            <ol><li>Open the organization's <strong>Security and quality</strong> tab.</li><li>Use <strong>Coverage</strong> to inspect effective feature enablement.</li><li>Filter risk and remediation views by repository/team and feature. Confirm the role sees the intended scope.</li></ol>
+          </details>
+          <details><summary>Use it <span class="sr-context">security overview</span></summary>
+            <p>Investigate uncovered repositories, assign owners and use campaigns for focused remediation. Export supported views as CSV where needed.</p>
+            <p><strong>Verify:</strong> compare a known repository's settings and alert list with its overview entry and active filters.</p>
+            <p><strong>Limits/cost:</strong> views and data depend on plan, enabled products and permissions. Enterprise organizations can view Dependabot data; paid security products unlock additional data. Default-branch views and empty alert lists are not evidence of full coverage.</p>
+          </details>
+          <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/security-at-scale/security-overview">Views, access and availability</a></p>
         </article>
       </div>
     </div>
   </section>
 
-  <section id="sdlc">
+  <section id="setup" aria-labelledby="setup-title">
     <div class="wrap">
-      <p class="kicker">Software Development Lifecycle</p>
-      <h2>Where GHAS sits in the SDLC</h2>
-      <p class="section-lede">GHAS is not one gate at the end. It attaches to five points in the lifecycle, each with a different owner and a different cost of failure. The earlier a problem is caught, the cheaper it is to fix.</p>
-
-      <div class="pipeline">
-        <div class="phase">
-          <div class="step">01 Code</div>
-          <h4>In the editor</h4>
-          <p>Secret scanning and code scanning results surface in the IDE, so problems are visible before a commit exists.</p>
-          <span class="who"><strong>Owner:</strong> Developer</span>
-        </div>
-        <div class="phase">
-          <div class="step">02 Commit</div>
-          <h4>On push</h4>
-          <p>Push protection blocks commits containing live credentials. The secret never enters git history.</p>
-          <span class="who"><strong>Owner:</strong> Developer</span>
-        </div>
-        <div class="phase">
-          <div class="step">03 Review</div>
-          <h4>In the pull request</h4>
-          <p>CodeQL analysis and dependency review run as checks. Findings appear as inline comments with suggested fixes.</p>
-          <span class="who"><strong>Owner:</strong> Reviewer</span>
-        </div>
-        <div class="phase">
-          <div class="step">04 Build</div>
-          <h4>In CI/CD</h4>
-          <p>Merge protection can require the security checks to pass. Third-party scanner results feed into the same alert model via SARIF.</p>
-          <span class="who"><strong>Owner:</strong> Platform team</span>
-        </div>
-        <div class="phase">
-          <div class="step">05 Operate</div>
-          <h4>After release</h4>
-          <p>Scheduled scans and new advisories re-evaluate code already shipped. Dependabot opens update PRs when a CVE lands.</p>
-          <span class="who"><strong>Owner:</strong> Security team</span>
-        </div>
+      <p class="kicker">02 / Enable</p>
+      <h2 id="setup-title">Your first repository, in the right order</h2>
+      <p class="intro">Use one representative repository with an accountable maintainer. These checkboxes are a local planning aid, not live GitHub settings. Checking a box does not enable a product.</p>
+      <div class="progress-row" id="progress-row" hidden><span id="setup-status" role="status">0 of 6 steps reviewed</span><progress id="setup-progress" max="6" value="0" aria-label="Setup checklist progress"></progress></div>
+      <div class="checklist">
+        <label><input type="checkbox" name="setup" value="eligibility"><span><b>1. Confirm eligibility, permissions and cost</b><small>Check visibility, ownership, GitHub plan, admin/security roles and applicable product entitlement. Review active committers, Actions usage and billing ownership. <a href="#pricing">Read the cost model</a>.</small></span></label>
+        <label><input type="checkbox" name="setup" value="secrets"><span><b>2. Enable secret detection and push protection</b><small>Use Settings &gt; Advanced Security &gt; Secret Protection. Triage existing leaks, define bypass ownership and verify effective settings. <a href="#secrets">Setup and remediation</a>.</small></span></label>
+        <label><input type="checkbox" name="setup" value="codeql"><span><b>3. Enable CodeQL default setup</b><small>Review languages and query suite; confirm the first successful analysis. Use advanced setup only where required. No supported language means no CodeQL analysis. <a href="#codeql">Setup details</a>.</small></span></label>
+        <label><input type="checkbox" name="setup" value="dependencies"><span><b>4. Turn on dependency protection</b><small>Check graph coverage; enable Dependabot alerts and security updates. Add version-update configuration and a dependency-review gate where appropriate. <a href="#dependabot">Compare the four capabilities</a>.</small></span></label>
+        <label><input type="checkbox" name="setup" value="ai"><span><b>5. Decide on AI features before enabling them</b><small>Confirm eligibility for each separate feature. Have the billing admin set hard AI-credit budgets with stop-usage enabled first. Review enterprise/org policy and immediate PR-scan cost exposure. Leaving AI Scan off is a valid choice. <a href="#ai-scan">AI controls and limits</a>.</small></span></label>
+        <label><input type="checkbox" name="setup" value="ownership"><span><b>6. Assign reviewers and prove the workflow</b><small>Name alert owners, test the review/fix path and require suitable CI/dependency/CodeQL checks. Do not treat advisory AI findings as merge-blocking checks. Document exceptions. <a href="#resolve">Resolve a finding</a>.</small></span></label>
       </div>
-
-      <h3 class="sub">Continuous, or an ad-hoc security exercise?</h3>
-      <p class="section-lede">Continuous, and in parallel with development. This is the single biggest difference from a classic scanning tool.</p>
-
-      <div class="grid-2">
-        <article class="card">
-          <div class="card-top">
-            <h3>Traditional security scan</h3>
-            <span class="tag">Ad hoc</span>
-          </div>
-          <p style="margin-top:0.6rem">A separate team runs a tool at the end of a release cycle, or once a quarter. Results arrive as a report, days or weeks after the code was written. The developer has moved on to other work and has to reload the whole context to fix anything. Findings compete with feature deadlines and often lose.</p>
-          <span class="plain"><strong>Result:</strong> a backlog of stale findings and a late, expensive fix.</span>
-        </article>
-        <article class="card">
-          <div class="card-top">
-            <h3>GHAS</h3>
-            <span class="tag green">Continuous</span>
-          </div>
-          <p style="margin-top:0.6rem">Analysis is triggered by the developer's own actions: every push, every pull request, plus a schedule on the default branch. The result lands within minutes, on the exact diff, while the code is still fresh in the author's head. Security work becomes part of the review, not a separate project.</p>
-          <span class="plain"><strong>Result:</strong> issues are fixed in the same pull request that created them.</span>
-        </article>
-      </div>
-
-      <div class="note">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
-        <div><strong>Point-in-time scanning still has a place</strong> for penetration tests and compliance audits. GHAS does not replace those. It removes the routine, repeatable class of findings so the manual work can focus on what a scanner cannot see: business logic, authorisation design and architecture.</div>
-      </div>
+      <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/getting-started/github-security-features">Feature availability</a><a href="https://docs.github.com/en/billing/how-tos/set-up-budgets">Set hard budgets</a><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/how-tos/find-and-fix-code-vulnerabilities/manage-your-configuration/set-merge-protection">Code scanning merge protection</a></p>
     </div>
   </section>
 
-  <section id="workflow">
+  <section id="ai-scan" aria-labelledby="ai-title">
     <div class="wrap">
-      <p class="kicker">Developer workflow</p>
-      <h2>What a developer actually experiences</h2>
-      <p class="section-lede">Nothing here asks a developer to open a new tool, log into a separate console, or learn a new vocabulary. The security signal arrives inside the pull request they already had open.</p>
-
-      <div class="timeline">
-        <div class="tl-item">
-          <div class="when">09:14 · Writing code</div>
-          <h4>The developer works normally</h4>
-          <p>No agent to install per machine, no local scan to remember to run. Configuration lives with the repository.</p>
-        </div>
-        <div class="tl-item">
-          <div class="when">09:41 · git push</div>
-          <h4>A hardcoded key is blocked</h4>
-          <p>Push protection rejects the push and names the credential type and file. The developer removes it, or requests a bypass that is logged for the security team.</p>
-        </div>
-        <div class="tl-item">
-          <div class="when">09:46 · Pull request opened</div>
-          <h4>Scans start automatically</h4>
-          <p>CodeQL analysis and dependency review run as GitHub Actions checks, in parallel with the unit tests. Typical feedback within minutes.</p>
-        </div>
-        <div class="tl-item">
-          <div class="when">09:53 · Review</div>
-          <h4>Findings appear on the diff</h4>
-          <p>Each alert is an inline comment on the offending line, with the data-flow path and severity. Copilot Autofix attaches a proposed code change the developer can commit directly.</p>
-        </div>
-        <div class="tl-item">
-          <div class="when">10:02 · Merge</div>
-          <h4>The gate is a branch rule, not a meeting</h4>
-          <p>Branch protection can require the security checks to pass before merge. Clean code goes in. Accepted risk is documented as a dismissal with a reason.</p>
-        </div>
-        <div class="tl-item">
-          <div class="when">Ongoing</div>
-          <h4>Old code keeps being checked</h4>
-          <p>Scheduled scans and new security advisories re-evaluate the default branch. If a dependency you shipped last year becomes vulnerable, Dependabot opens the update PR.</p>
-        </div>
+      <p class="kicker">03 / Use deliberately</p>
+      <h2 id="ai-title">AI Scan is three separate capabilities</h2>
+      <p class="intro">They share an enterprise AI Scan policy, not one on/off switch or one coverage promise. Organizations enable each separately. Repository admins can opt out independently. Read each feature's availability and billing before you enable it.</p>
+      <div class="note"><strong>Budget before enablement.</strong> Configure a hard <strong>Code Security AI credits</strong> budget with <strong>Stop usage when budget limit is reached</strong>. Organization PR-scan enablement can immediately enable eligible repositories and incur usage before repository admins opt out. Allowing an enterprise policy alone does not turn a feature on. <a href="https://docs.github.com/en/billing/concepts/product-billing/github-advanced-security#how-ai-feature-usage-is-billed">Official billing rules</a>.</div>
+      <div class="grid three">
+        <article class="card" id="ai-pr">
+          <span class="tag ai">PR changes / Code Security AI credits</span>
+          <h3>AI Scan for pull requests</h3>
+          <p>Find general security vulnerabilities in selected languages/frameworks outside CodeQL coverage, such as PHP or Terraform HCL.</p>
+          <p class="example"><small>Illustrative example</small>A PHP change builds an unsafe SQL string from request input.</p>
+          <p class="when"><strong>Runs:</strong> eligible PR creation and new commits.</p>
+          <details><summary>Setup <span class="sr-context">AI Scan for PRs</span></summary>
+            <p><strong>Need:</strong> code scanning enabled and an effective AI PR setting. Neither a Copilot license nor CodeQL default setup is required.</p>
+            <ol><li>Confirm eligibility and hard budget. Private/internal org repos need Code Security/GHAS; public org/personal repos do not need an active-committer license. Personal private and managed-user personal namespaces are excluded.</li><li>Enterprise owner allows <strong>AI Scan</strong>. Org owner/security manager enables <strong>AI Scan for pull requests</strong>.</li><li>Review affected repos. Org repo admins can opt out, not override a disabled org setting. Public personal-repo admins toggle it directly.</li></ol>
+          </details>
+          <details><summary>Use it <span class="sr-context">AI Scan for PRs</span></summary>
+            <p>Review <strong>AI</strong>-labeled findings in the PR Conversation/Files changed views, assess the risk and test the fix.</p>
+            <p><strong>Verify:</strong> inspect the effective setting and an eligible PR's findings/reporting. No finding does not prove a scan found everything.</p>
+            <p><strong>Limits/cost:</strong> advisory only, cannot block merges via rulesets. No fork PRs, Dependabot PRs or self-hosted runners. Selected coverage and possible false positives. Public access is not free AI usage. Credits are charged to the responsible billing account.</p>
+          </details>
+          <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/code-scanning/ai-powered-security-detections">PR setup, coverage and billing</a></p>
+        </article>
+        <article class="card" id="ai-repository">
+          <span class="tag ai">Default branch / public preview</span>
+          <h3>AI Scan for repositories</h3>
+          <p>Search your default-branch backlog across languages, including languages CodeQL already supports.</p>
+          <p class="example"><small>Illustrative example</small>A maintainer requests a one-off scan for a risky authorization path in existing code.</p>
+          <p class="when"><strong>Runs:</strong> on demand, not on push or a schedule.</p>
+          <details><summary>Setup <span class="sr-context">AI repository scans</span></summary>
+            <p><strong>Need:</strong> eligible repo and <strong>write access</strong> to run a scan. No Copilot license required. Public org/personal access is available; org private/internal repos need Code Security/GHAS. Personal private and managed-user personal namespaces are excluded.</p>
+            <ol><li>Review billing and set a hard Code Security AI credits budget.</li><li>Enterprise allows AI Scan; org owner/security manager enables <strong>AI Scan for repositories</strong>. Org admins can opt out per repo but cannot override disabled org policy.</li><li>From repository code scanning, start an on-demand AI Scan. Enabling the setting alone does not start a scan.</li></ol>
+          </details>
+          <details><summary>Use it <span class="sr-context">AI repository scans</span></summary>
+            <p>In <strong>Security and quality &gt; Code scanning</strong>, filter by <strong>AI Scan</strong>. Assign, link issues or add findings to campaigns.</p>
+            <p><strong>Verify after a fix:</strong> manually rerun. During preview an alert auto-closes only if the fix changes the exact triggering line; otherwise review and close it manually with evidence.</p>
+            <p><strong>Limits/cost:</strong> each scan consumes Code Security AI credits, including public repos. The agent selects code within a time budget; it does not read every file in full. Default branch only, no automatic rescan, no self-hosted runners, and duplicate/inaccurate findings are possible.</p>
+          </details>
+          <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/code-scanning/ai-scan-for-repositories">Repository scans and limitations</a></p>
+        </article>
+        <article class="card" id="ai-apps">
+          <span class="tag ai">AI applications / public preview</span>
+          <h3>Scan for AI applications</h3>
+          <p>Find risks specific to AI apps and agents. Current preview detection focuses on indirect prompt injection, not every AI security risk.</p>
+          <p class="example"><small>Illustrative example</small>An agent treats untrusted text from a fetched page as instructions to call a privileged tool.</p>
+          <p class="when"><strong>Runs:</strong> eligible PR creation and new commits.</p>
+          <details><summary>Setup <span class="sr-context">AI application scanning</span></summary>
+            <p><strong>Need:</strong> eligible repository, code scanning, and the feature's own entitlement. Its docs require a <strong>GHAS license plus AI credits, including eligible public repositories</strong>. Do not reuse the public-repo licensing assumption from the other AI scans.</p>
+            <ol><li>Confirm availability for your account and set a hard AI-credit budget.</li><li>Enterprise owner allows the shared <strong>AI Scan</strong> policy.</li><li>Org owner separately enables <strong>Scan for AI applications</strong>. Repo admins may opt out. Enabling general AI PR Scan does not enable this detector.</li></ol>
+          </details>
+          <details><summary>Use it <span class="sr-context">AI application scanning</span></summary>
+            <p>Review <strong>AI app</strong>-labeled PR comments and proposed Autofix changes. Trace untrusted data into model/tool actions and test the trust-boundary fix.</p>
+            <p><strong>Verify:</strong> confirm the separate setting and evaluate the relevant PR comment/fix. Review output rather than assuming an Autofix is correct.</p>
+            <p><strong>Limits/cost:</strong> advisory, not a merge gate. PRs only, no backlog scan, fork or Dependabot PRs. No language/framework restriction is documented, but preview detection is limited to indirect prompt injection. AI credits are additional to the license. Its automatic Autofix behavior is independent of the CodeQL Autofix toggle.</p>
+          </details>
+          <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/code-scanning/ai-applications-scanning-for-pull-requests">AI app scanning requirements</a></p>
+        </article>
       </div>
+      <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/code-scanning/ai-scan">Official comparison of the three capabilities</a><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/responsible-use/security-and-quality-ai-features">Responsible use and human review</a></p>
     </div>
   </section>
 
-  <section id="why">
+  <section id="resolve" aria-labelledby="resolve-title">
     <div class="wrap">
-      <p class="kicker">The case for it</p>
-      <h2>Why Code Scanning and Secret Scanning matter</h2>
-      <p class="section-lede">These two features cover the two most common and most damaging root causes of application breaches: a flaw in the code, and a credential that got out.</p>
-
-      <div class="grid-2">
-        <article class="card">
-          <div class="card-icon red">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
-          </div>
-          <h3>A leaked secret is immediately exploitable</h3>
-          <p>A vulnerability needs an attacker to find and weaponise it. A live API key needs nothing. Public repositories are continuously scraped by automated tooling, and a committed cloud credential can be used within minutes of the push.</p>
-          <span class="plain"><strong>And:</strong> deleting the line does not help. The secret stays in git history until it is revoked. Push protection is the only reliable answer, because it stops the commit from happening.</span>
+      <p class="kicker">04 / Fix</p>
+      <h2 id="resolve-title">An alert is the start, not the outcome</h2>
+      <p class="intro">These examples are illustrative, not live alerts or screenshots. Use the evidence and context to choose the right remediation. Code, secrets and dependencies need different responses.</p>
+      <div class="grid three">
+        <article class="card" id="resolve-code">
+          <span class="tag">Code</span><h3>Trace it. Fix it. Rescan.</h3>
+          <div class="alert"><small>ILLUSTRATIVE ALERT</small><b>SQL injection</b><br>request parameter &gt; query builder &gt; database</div>
+          <ol class="resolution">
+            <li><strong>Assess the alert.</strong> Read the rule, severity and affected branch. Inspect the source-to-sink data flow where available.</li>
+            <li><strong>Review the fix.</strong> Parameterize the query and preserve intended behavior. Review any Autofix as untrusted proposed code.</li>
+            <li><strong>Test.</strong> Add a regression case for malicious input, run existing tests and rerun the relevant analysis.</li>
+            <li><strong>Review and merge.</strong> Have the owner approve the full diff and required checks.</li>
+            <li><strong>Confirm resolution.</strong> Check the default-branch scan and alert status. For repository AI Scan, manually rerun and follow its preview closure rules.</li>
+          </ol>
+          <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/how-tos/manage-security-alerts/manage-code-scanning-alerts/resolve-alerts">Resolve code scanning alerts</a></p>
         </article>
         <article class="card">
-          <div class="card-icon red">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17V7l4 10 4-10 4 10 4-10v10"/></svg>
-          </div>
-          <h3>Fix cost rises sharply with time</h3>
-          <p>A vulnerability caught in a pull request is a small edit by the person who wrote the code. The same vulnerability found in production is an incident: triage, a hotfix, a release, possibly a disclosure and a customer conversation.</p>
-          <span class="plain"><strong>And:</strong> code review by humans does not scale to every line of every PR. Automated analysis does, and it never skips a file because the sprint is ending.</span>
-        </article>
-      </div>
-
-      <h3 class="sub">Outcomes teams report</h3>
-      <div class="outcomes">
-        <div class="outcome">
-          <div class="big">Minutes</div>
-          <p>Time from writing insecure code to being told about it, instead of weeks.</p>
-        </div>
-        <div class="outcome">
-          <div class="big">In-PR</div>
-          <p>Most findings are resolved in the pull request that introduced them.</p>
-        </div>
-        <div class="outcome">
-          <div class="big">0 leaks</div>
-          <p>Push protection prevents new secrets entering history, rather than reporting them afterwards.</p>
-        </div>
-        <div class="outcome">
-          <div class="big">1 view</div>
-          <p>One security overview across all repositories, replacing scattered tool reports.</p>
-        </div>
-      </div>
-
-      <div class="grid-3">
-        <article class="card">
-          <h3>For developers</h3>
-          <p>Feedback on their own diff, in their own language, with a suggested fix. Less context switching, fewer surprise security tickets months later.</p>
+          <span class="tag">Secrets</span><h3>Revoke first. Then clean up.</h3>
+          <div class="alert"><small>ILLUSTRATIVE, NON-FUNCTIONAL VALUE</small><b>Exposed API credential</b><br>DEMO_NOT_A_VALID_CREDENTIAL</div>
+          <ol class="resolution">
+            <li><strong>Revoke or rotate at the issuer.</strong> Invalidate the exposed value. Coordinate replacement and dependent services.</li>
+            <li><strong>Remove the secret.</strong> Move credentials to a secret store. Assess history cleanup and coordinate it carefully if needed.</li>
+            <li><strong>Investigate exposure.</strong> Review issuer logs, scope, access and incident response requirements. A removed line does not invalidate a credential.</li>
+            <li><strong>Verify and document.</strong> Confirm the old value no longer authenticates; record actions without copying the secret into tickets. Resolve the alert with the accurate reason.</li>
+            <li><strong>Prevent recurrence.</strong> Check push protection and review any bypass.</li>
+          </ol>
+          <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/how-tos/manage-security-alerts/manage-secret-scanning-alerts/resolving-alerts">Resolve secret alerts</a></p>
         </article>
         <article class="card">
-          <h3>For security teams</h3>
-          <p>Coverage across every repository instead of sampling. Alerts with data-flow evidence, and campaigns to drive the backlog down with named owners.</p>
-        </article>
-        <article class="card">
-          <h3>For the business</h3>
-          <p>Fewer late-stage blockers before a release, auditable evidence of controls, and a consistent policy applied across the whole estate.</p>
+          <span class="tag">Dependencies</span><h3>Update without breaking behavior.</h3>
+          <div class="alert"><small>ILLUSTRATIVE ADVISORY</small><b>Vulnerable dependency</b><br>affected version &gt; patched release</div>
+          <ol class="resolution">
+            <li><strong>Read the advisory.</strong> Check affected/fixed ranges, reachability and whether the dependency is direct or transitive.</li>
+            <li><strong>Review an update PR.</strong> Use Dependabot or create the change manually. Inspect release notes and the lockfile.</li>
+            <li><strong>Test compatibility.</strong> Run unit/integration tests and validate the vulnerable behavior. A compatibility score is not a substitute.</li>
+            <li><strong>Merge with review.</strong> Follow required checks and release policy. Deploy the patched build where applicable.</li>
+            <li><strong>Confirm resolution.</strong> Check the updated dependency graph and linked alert. If no patch exists, document mitigation and reassessment ownership.</li>
+          </ol>
+          <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/how-tos/manage-security-alerts/manage-dependabot-alerts/viewing-and-updating-dependabot-alerts">Act on Dependabot alerts</a></p>
         </article>
       </div>
     </div>
   </section>
 
-  <section id="pricing">
+  <section id="integrations" aria-labelledby="integrations-title">
     <div class="wrap">
-      <p class="kicker">Commercials</p>
-      <h2>Pricing and the metered model</h2>
-      <p class="section-lede">GHAS is licensed per <strong>active committer</strong>, billed monthly. An active committer is a developer who pushed at least one commit to a repository where the product is enabled, during that billing month. Someone who did not commit that month is not billed for that month.</p>
+      <p class="kicker">Connect the workflow</p>
+      <h2 id="integrations-title">Bring findings in. Send useful signals out.</h2>
+      <p class="intro">An upload integration and a notification integration do different jobs. The labels below distinguish built-in capabilities from standards-based uploads and custom/API work. None implies a one-click connector.</p>
+      <div class="grid">
+        <article class="card">
+          <span class="tag">Incoming / standards-based</span><h3>Third-party scanner findings</h3>
+          <div class="flow" aria-label="Scanner to SARIF to GitHub alert to pull request fix"><span>Scanner</span> &rarr; <span>SARIF 2.1.0</span> &rarr; <span>GitHub alert</span> &rarr; <span>PR fix</span></div>
+          <p>Use a scanner that emits GitHub-supported SARIF. GitHub displays uploaded findings; it does not run or license the vendor scanner for you.</p>
+          <details><summary>Setup and verification <span class="sr-context">SARIF uploads</span></summary>
+            <ol><li>Confirm code scanning eligibility and scanner licensing. Configure SARIF <strong>2.1.0</strong> output with stable rule IDs and file locations.</li><li>Upload using the official upload-sarif action, CodeQL CLI or REST API. Actions uploads need appropriate <code>security-events: write</code>; API credentials need code scanning write permission.</li><li>Associate the correct commit/ref and analysis category. Verify the analysis and a finding's file/line in GitHub.</li></ol>
+            <p><strong>Limits:</strong> GitHub supports a subset of SARIF, with size/result limits. Not every vendor finding or remediation field maps to GitHub. Private/internal code scanning requires Code Security; vendor and CI costs are separate.</p>
+          </details>
+          <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/code-scanning/sarif-files">SARIF formats and methods</a><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/how-tos/find-and-fix-code-vulnerabilities/integrate-with-existing-tools/upload-sarif-file">Upload permissions and steps</a></p>
+        </article>
+        <article class="card">
+          <span class="tag">Incoming / custom CI integration</span><h3>External CI/CD and CodeQL CLI</h3>
+          <div class="flow" aria-label="External CI to CodeQL or scanner to SARIF upload"><span>External CI</span> &rarr; <span>CodeQL / scanner</span> &rarr; <span>SARIF upload</span></div>
+          <p>Keep your existing CI system. Run CodeQL CLI or another compatible scanner there and send the results back to GitHub.</p>
+          <details><summary>Setup and verification <span class="sr-context">external CI</span></summary>
+            <ol><li>Confirm CodeQL CLI entitlement, supported runner/build environment and repository access. Use advanced/external setup rather than conflicting default setup.</li><li>In CI, check out the correct commit, create/analyze the CodeQL database (or run your scanner), and generate SARIF.</li><li>Upload with a least-privilege GitHub App/token authorized for code scanning writes. Verify commit/ref, paths and the resulting analysis.</li></ol>
+            <p><strong>Limits:</strong> you own tool updates, builds, triggers, token rotation and failed-job monitoring. External analysis does not automatically configure a required merge check. This is not a way to run GitHub's AI Scan on a self-hosted runner.</p>
+          </details>
+          <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/code-scanning/integration-with-code-scanning">External analysis options</a><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/how-tos/find-and-fix-code-vulnerabilities/integrate-with-existing-tools/use-with-existing-ci-system">Existing CI setup</a></p>
+        </article>
+        <article class="card">
+          <span class="tag">Outgoing / custom webhook or API</span><h3>Tickets and chat notifications</h3>
+          <div class="flow" aria-label="GitHub alert to webhook or API to ticket or notification"><span>GitHub alert</span> &rarr; <span>Webhook / API</span> &rarr; <span>Ticket / notification</span></div>
+          <p>For example, route a code scanning alert to Slack using a custom webhook handler. A Jira ticket or Teams notification needs its own authorized destination API/app workflow, not an assumed native GHAS connector.</p>
+          <details><summary>Setup and verification <span class="sr-context">ticket and chat routing</span></summary>
+            <ol><li>Install an approved app or create a webhook handler. Select the relevant supported events, such as <code>code_scanning_alert</code>, <code>dependabot_alert</code> or <code>secret_scanning_alert</code>.</li><li>Authorize only required repository security-read/event permissions and destination scopes. Validate GitHub webhook signatures and protect delivery credentials.</li><li>Map alert IDs to destination records. Handle retries, duplicates and state changes; test a delivery and resolution update.</li></ol>
+            <p><strong>Limits:</strong> event availability varies by alert type and access. Restrict recipients, redact sensitive payloads and link to GitHub rather than copying secrets. Acknowledging a ticket does not resolve a GitHub alert. App/vendor costs can apply.</p>
+          </details>
+          <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/code-scanning/integration-with-code-scanning#integrations-with-webhooks">Official Slack routing example</a><a href="https://docs.github.com/en/webhooks/webhook-events-and-payloads">Events and permissions</a><a href="https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries">Validate deliveries</a></p>
+        </article>
+        <article class="card">
+          <span class="tag">Outgoing / custom API or verified vendor app</span><h3>Dashboards and SIEM</h3>
+          <div class="flow" aria-label="GitHub alerts to scoped API or webhooks to dashboard or SIEM"><span>GitHub alerts</span> &rarr; <span>API / webhooks</span> &rarr; <span>Dashboard / SIEM</span></div>
+          <p>Use security-alert APIs or supported events to build a reporting feed. Assess a vendor connector's actual supported alert types and permissions before calling it integrated.</p>
+          <details><summary>Setup and verification <span class="sr-context">dashboards and SIEM</span></summary>
+            <ol><li>Choose a scoped GitHub App or approved connector with read access to required code scanning, Dependabot or secret scanning alerts.</li><li>Backfill via paginated APIs. Add webhook updates or scheduled reconciliation, secure storage and retention controls.</li><li>Compare sampled alert IDs, states and repository coverage against GitHub; monitor retries and API rate limits.</li></ol>
+            <p><strong>Limits:</strong> no universal one-click SIEM connector is implied. Permission-filtered API data, missing pages or undelivered webhooks can distort counts. Audit logs and security findings are different feeds. Third-party charges and data-handling obligations are separate.</p>
+          </details>
+          <p class="docs"><a href="https://docs.github.com/en/rest/code-scanning">Code scanning API</a><a href="https://docs.github.com/en/rest/dependabot">Dependabot API</a><a href="https://docs.github.com/en/rest/secret-scanning">Secret scanning API</a></p>
+        </article>
+      </div>
+      <div class="note"><strong>Built in: secret-provider partner alerts.</strong> Data flow: supported public leak &rarr; GitHub &rarr; participating issuer. Scanning for partner patterns on public repositories is automatic; repository admins cannot change that configuration. The issuer decides whether to revoke, rotate or contact you. This is not a private-repository notification connector and does not guarantee every secret is revoked. For private leaks, follow your own alert response. <a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/secret-security/secret-scanning-for-partners">Partner scope and behavior</a>.</div>
+    </div>
+  </section>
 
-      <div class="table-scroll">
+  <section id="rollout" aria-labelledby="rollout-title">
+    <div class="wrap">
+      <p class="kicker">Scale after the pilot</p>
+      <h2 id="rollout-title">Organization rollout is a separate job</h2>
+      <p class="intro">A working repository configuration is the pilot, not an organization policy. Organization owners and security managers should agree on coverage, ownership and budgets before expanding.</p>
+      <div class="grid">
+        <article class="card"><span class="tag">Governance</span><h3>Define and apply a baseline</h3>
+          <ol class="resolution"><li><strong>Inventory repositories.</strong> Record visibility, languages, owners, registry access and existing scanners. Estimate per-product active committers and AI/Actions exposure.</li><li><strong>Set enterprise policy and hard budgets.</strong> Treat AI policy allowance and org feature enablement as separate decisions.</li><li><strong>Create a security configuration.</strong> Enable applicable secret, dependency and CodeQL controls. Pilot a selected group before applying broadly or making it the default for new repositories.</li><li><strong>Handle exceptions.</strong> Use advanced CodeQL setup where default setup cannot meet build needs. Document opt-outs, bypass approvals and review dates.</li></ol>
+          <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/how-tos/secure-at-scale/configure-organization-security/establish-complete-coverage/apply-custom-configuration">Apply security configurations</a><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/how-tos/secure-at-scale/configure-organization-security/configure-specific-tools/code-scanning-at-scale">CodeQL at scale</a></p>
+        </article>
+        <article class="card"><span class="tag">Operations</span><h3>Prove coverage and keep it useful</h3>
+          <ol class="resolution"><li><strong>Inspect effective coverage.</strong> Review failed analyses, missing languages, disabled features and policy inheritance in security overview.</li><li><strong>Agree on review and merge rules.</strong> Require tests and appropriate code/dependency checks. AI advisory findings cannot be ruleset merge gates.</li><li><strong>Assign remediation.</strong> Name a triage owner and escalation path; use bounded campaigns for the backlog and an incident process for live secrets.</li><li><strong>Reassess regularly.</strong> Track unresolved risk, bypass reasons, scan health, committer licensing and AI usage. Empty alert lists do not prove safety.</li></ol>
+          <p class="docs"><a href="https://docs.github.com/en/enterprise-cloud@latest/code-security/concepts/security-at-scale/security-overview">Coverage and risk views</a><a href="https://docs.github.com/en/billing/concepts/budgets-and-alerts">Budgets and alerts</a></p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="pricing" aria-labelledby="pricing-title">
+    <div class="wrap">
+      <p class="kicker">Cost without surprises</p>
+      <h2 id="pricing-title">Licenses, AI credits and CI are different costs</h2>
+      <p class="intro">Public USD list prices checked <time datetime="2026-11-18">18 November 2026</time>: <strong>Secret Protection $19</strong> and <strong>Code Security $30</strong> per active committer/month. These are product license prices, not an all-in AI or CI allowance. <a href="https://github.com/security/plans">Official security pricing</a>.</p>
+      <div class="note"><strong>Active means a rolling 90-day window.</strong> A committer is active if one of their commits was <strong>pushed within the last 90 days</strong>, regardless of original author date. A monthly invoice does not mean only calendar-month activity counts. Committers are deduplicated across applicable enabled repositories at the organization/enterprise billing scope, <strong>per product</strong>. <a href="https://docs.github.com/en/billing/concepts/product-billing/github-advanced-security">Official license measurement</a>.</div>
+      <div class="table-wrap" role="region" aria-label="Security cost comparison, scroll horizontally on small screens" tabindex="0">
         <table>
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>List price</th>
-              <th>Metric</th>
-              <th>What you get</th>
-            </tr>
-          </thead>
+          <caption>GitHub.com / Enterprise Cloud guide. Contract terms, deployment type, entitlements and preview availability can differ. Recheck official sources before buying or enabling.</caption>
+          <thead><tr><th scope="col">Cost layer</th><th scope="col">What to budget</th><th scope="col">Important distinction</th></tr></thead>
           <tbody>
-            <tr>
-              <td><strong>GitHub Secret Protection</strong></td>
-              <td class="price">$19</td>
-              <td class="muted">per active committer / month</td>
-              <td class="muted">Secret scanning, push protection, validity checks, custom patterns, partner alerts, historic scan.</td>
-            </tr>
-            <tr>
-              <td><strong>GitHub Code Security</strong></td>
-              <td class="price">$30</td>
-              <td class="muted">per active committer / month</td>
-              <td class="muted">CodeQL code scanning, Copilot Autofix, dependency review, security campaigns, SARIF ingest.</td>
-            </tr>
-            <tr>
-              <td><strong>Both together</strong></td>
-              <td class="price">$49</td>
-              <td class="muted">per active committer / month</td>
-              <td class="muted">The full GHAS scope. Matches the price of the legacy bundled GHAS licence.</td>
-            </tr>
-            <tr>
-              <td><strong>Public repositories</strong></td>
-              <td class="price">$0</td>
-              <td class="muted">free</td>
-              <td class="muted">Code scanning, secret scanning and dependency features are free on public repos.</td>
-            </tr>
+            <tr><td>Basic dependency features</td><td>Dependency graph, Dependabot alerts, basic security updates and version updates have no GHAS license charge on public/private repositories.</td><td>Premium features such as custom auto-triage and private dependency review are separate. CI costs can still apply.</td></tr>
+            <tr><td>Secret Protection license</td><td>$19 USD per active committer/month for the paid product.</td><td>Free public secret scanning/push protection is not an entitlement to every paid or AI feature.</td></tr>
+            <tr><td>Code Security license</td><td>$30 USD per active committer/month for the paid product.</td><td>Public repositories have free access to a subset, including code scanning and classic Autofix. Private/internal use requires applicable entitlement.</td></tr>
+            <tr><td>Code Security AI credits</td><td>AI Scan and agentic autofix usage. Included Copilot-entitlement credits, if applicable, are used first; further usage is metered.</td><td>Public repositories can incur charges. Classic Copilot Autofix is distinct and does not consume AI credits. AI application scanning has its own license requirements.</td></tr>
+            <tr><td>Secret Protection AI credits</td><td>Push protection for AI-detected secrets, based on content scanned.</td><td>A scanned push can consume credits even without a finding. Set a hard stop-usage budget before enabling.</td></tr>
+            <tr><td>Actions / external CI / vendor</td><td>Applicable Actions runner/storage usage, external CI infrastructure and scanner/app licenses.</td><td>A security product license does not make every runner or third-party integration free.</td></tr>
           </tbody>
         </table>
       </div>
-
-      <h3 class="sub">How the metered model behaves</h3>
-      <div class="grid-3">
-        <article class="card">
-          <div class="card-icon green">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          </div>
-          <h3>You pay for activity, not headcount</h3>
-          <p>The count is derived from commits in the billing period, not from a static seat list. Contractors who finish an engagement drop out of the count automatically.</p>
-        </article>
-        <article class="card">
-          <div class="card-icon">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-          </div>
-          <h3>Committers are deduplicated</h3>
-          <p>A developer working across ten enabled repositories is counted once, not ten times. The billing unit is the person in the enterprise, per month.</p>
-        </article>
-        <article class="card">
-          <div class="card-icon purple">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20v-3"/></svg>
-          </div>
-          <h3>You can enable it gradually</h3>
-          <p>Turn it on per repository or per organisation. Start with the repositories that carry real risk, watch the committer count, then widen the scope.</p>
-        </article>
-      </div>
-
-      <div class="note">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
-        <div><strong>Prices are list prices</strong> for GitHub Enterprise Cloud and can change. Enterprise agreements, volume terms and GitHub Enterprise Server entitlements may differ. Confirm the current figures with your GitHub account team or on <a href="https://github.com/pricing" target="_blank" rel="noopener">github.com/pricing</a> before budgeting.</div>
+      <p class="docs"><a href="https://docs.github.com/en/billing/concepts/product-billing/github-advanced-security">Licensing and AI-credit billing</a><a href="https://docs.github.com/en/billing/how-tos/set-up-budgets">Hard stop-usage budgets</a><a href="https://docs.github.com/en/billing/concepts/product-billing/github-actions">Actions billing</a></p>
+      <div class="faq" id="faq">
+        <details><summary>Does this guide turn anything on in my repository?</summary><p>No. It is a static learning guide, not connected to your account. The checklist stays in this page session and does not modify GitHub settings.</p></details>
+        <details><summary>Are public repositories completely free?</summary><p>No. A subset of security features is free on GitHub.com public repositories. AI Scan and agentic autofix can consume paid AI credits. AI application scanning documentation requires a GHAS license plus AI credits even for eligible public repositories. Check each feature, billing account and hard budget.</p></details>
+        <details><summary>Can I require every AI finding to be fixed before merge?</summary><p>Not through the AI Scan ruleset integration: AI PR and AI application findings are advisory and cannot enforce merge blocking. Use review policy alongside supported CodeQL, dependency-review and test gates. Do not confuse an AI comment with a required failed check.</p></details>
+        <details><summary>Why is there no alert after I enable a feature?</summary><p>Check eligibility, effective policy, completed analyses, supported language/manifest, branch and filters. An exhausted hard AI budget can prevent findings. No alerts can mean no finding, missing coverage or a scan that has not run. It is not a clean bill of health.</p></details>
+        <details><summary>Does deleting a secret or dismissing an alert fix the risk?</summary><p>No. Revoke/rotate a leaked credential at its issuer, remove it safely and investigate exposure. Dismiss code/dependency findings only with an evidence-based reason and an owner for any accepted risk.</p></details>
+        <details><summary>How current is this guide, and does it apply to GHES?</summary><p>AI behavior, billing and public list prices were checked against linked official documentation on 18 November 2026. Preview features can change. This guide targets GitHub.com / Enterprise Cloud, not blanket GHES availability. Confirm your GHES version's docs, contract and account eligibility before rollout. Prices are not a quote, and no AI-credit rate is invented here.</p></details>
       </div>
     </div>
   </section>
-
-  <section id="faq">
-    <div class="wrap">
-      <p class="kicker">Common questions</p>
-      <h2>Quick answers</h2>
-      <p class="section-lede">The questions that come up most often in the first conversation about GHAS.</p>
-
-      <details open>
-        <summary>Does it slow down the pull request?</summary>
-        <p>Scans run as checks in parallel with your existing tests, so they overlap with work that was happening anyway. Analysis time depends on repository size and language, and typically lands in minutes. You decide whether a failing security check blocks merge or is advisory.</p>
-      </details>
-      <details>
-        <summary>Will developers be buried in false positives?</summary>
-        <p>CodeQL traces actual data flow rather than matching keywords, which keeps noise well below a naive pattern scanner. Alerts can be dismissed with a documented reason, queries can be tuned per repository, and Copilot Autofix reduces the effort for the alerts that are real.</p>
-      </details>
-      <details>
-        <summary>Does it replace our existing security tools?</summary>
-        <p>Not necessarily. Third-party scanners can upload SARIF results into the same alert list, so GitHub becomes the single place developers look. Many teams keep a specialist tool and use GHAS as the always-on layer in the developer workflow.</p>
-      </details>
-      <details>
-        <summary>What happens to secrets already in our history?</summary>
-        <p>A historic scan flags them. The important step is revoking and rotating the credential, because it stays retrievable in git history even after the line is deleted. Push protection then prevents the next one from getting in.</p>
-      </details>
-      <details>
-        <summary>Can we enable it for just some repositories?</summary>
-        <p>Yes. Enablement is per repository, and can be applied at organisation level with security configurations so new repositories inherit the policy automatically. Billing follows the committers in the repositories you enabled.</p>
-      </details>
-    </div>
-  </section>
-
 </main>
-
-<footer>
-  <div class="wrap footer-inner">
-    <div>GitHub Advanced Security overview · Updated September 2026</div>
-    <div class="footer-links">
-      <a href="https://onurpiskin.github.io/CustomerTKE-Copilot-Journey-GitHub/" target="_blank" rel="noopener">Resource hub</a>
-      <a href="https://docs.github.com/code-security" target="_blank" rel="noopener">Official docs</a>
-      <a href="https://github.com/pricing" target="_blank" rel="noopener">Pricing</a>
-      <a href="https://github.blog/changelog/label/code-security/" target="_blank" rel="noopener">Changelog</a>
-    </div>
-  </div>
-</footer>
-
-<script>
-  (function () {
-    var btn = document.getElementById('theme-toggle');
-    if (!btn) return;
-    btn.addEventListener('click', function () {
-      var root = document.documentElement;
-      var current = root.getAttribute('data-theme');
-      if (!current) {
-        current = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      }
-      var next = current === 'dark' ? 'light' : 'dark';
-      root.setAttribute('data-theme', next);
-      try { localStorage.setItem('ghas-theme', next); } catch (e) {}
-    });
-  })();
-</script>
-
+<footer><div class="wrap footer-inner"><span>GHAS Explained / Practical guide &middot; Verified 18 Nov 2026 &middot; Unofficial guide</span><div><a href="https://docs.github.com/en/code-security">Official docs</a><a href="https://github.com/security/plans">Current pricing</a><a href="#overview">Back to top</a></div></div></footer>
 </body>
 </html>
